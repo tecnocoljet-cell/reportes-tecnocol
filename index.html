@@ -2385,7 +2385,20 @@
                 clientDocument: client.documento || '',
                 clientCity: client.ciudad || '',
                 clientAddress: client.direccion || '',
-                equipments: window.reportEquipments,
+                equipments: window.reportEquipments.map(eq => ({
+                    equipment: {
+                        id: eq.equipment.id || '',
+                        equipmentNumber: eq.equipment.equipmentNumber || '',
+                        model: eq.equipment.model || '',
+                        serial: eq.equipment.serial || '',
+                        notes: eq.equipment.notes || ''
+                    },
+                    trabajos: eq.trabajos || [],
+                    parametros: eq.parametros || {},
+                    materiales: eq.materiales || [],
+                    observations: eq.observations || '',
+                    images: (eq.images || []).map(img => img.data || img) // Only keep base64 data strings
+                })),
                 serviceType: document.getElementById('serviceType').value,
                 horaEntrada: horaEntrada,
                 horaSalida: horaSalida,
