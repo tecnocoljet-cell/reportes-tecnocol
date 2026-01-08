@@ -1,0 +1,3151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Reportes de Mantenimiento</title>
+    
+    <!-- jsPDF for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .role-selector {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .role-selector h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .role-selector p {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .role-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .role-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .role-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .main-content {
+            display: none;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .header h2 {
+            color: #333;
+            font-size: 24px;
+        }
+
+        .back-btn {
+            background: #f0f0f0;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .back-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .info-card {
+            background: #f8f9ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-card h3 {
+            color: #667eea;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .info-card p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: auto;
+            cursor: pointer;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            width: 100%;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .pending-reports {
+            margin-top: 30px;
+        }
+
+        .report-card {
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: box-shadow 0.2s;
+        }
+
+        .report-card:hover {
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .report-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .report-date {
+            color: #999;
+            font-size: 14px;
+        }
+
+        .report-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .detail-item {
+            font-size: 14px;
+        }
+
+        .detail-label {
+            color: #666;
+            font-weight: 600;
+        }
+
+        .detail-value {
+            color: #333;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .approve-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .approve-btn:hover {
+            background: #059669;
+        }
+
+        .reject-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .reject-btn:hover {
+            background: #dc2626;
+        }
+
+        .new-equipment-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+
+        .new-equipment-btn:hover {
+            background: #059669;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            color: #333;
+            font-size: 20px;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .success-message {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error-message {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .firebase-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .firebase-status.connected {
+            border-left: 4px solid #10b981;
+        }
+
+        .firebase-status.disconnected {
+            border-left: 4px solid #ef4444;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 10px;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+
+            .role-buttons {
+                flex-direction: column;
+            }
+
+            .role-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Role Selection -->
+        <div class="role-selector" id="roleSelector">
+            <h1>🔧 Sistema de Reportes de Mantenimiento</h1>
+            <p>Selecciona tu rol para continuar</p>
+            <div class="role-buttons">
+                <button class="role-btn" onclick="selectRole('employee')">
+                    👷 Empleado<br><small>Crear Reportes</small>
+                </button>
+                <button class="role-btn" onclick="selectRole('admin')">
+                    👨‍💼 Administrador<br><small>Aprobar Reportes</small>
+                </button>
+            </div>
+        </div>
+
+        <!-- Employee View -->
+        <div class="main-content" id="employeeView">
+            <div class="header">
+                <h2>📋 Nuevo Reporte de Servicio</h2>
+                <button class="back-btn" onclick="backToRoleSelector()">← Volver</button>
+            </div>
+
+            <div class="success-message" id="successMessage"></div>
+            <div class="error-message" id="errorMessage"></div>
+
+            <form id="reportForm">
+                <div class="form-group">
+                    <label>Nombre del Técnico *</label>
+                    <input type="text" id="technicianName" required placeholder="Ingresa tu nombre">
+                </div>
+
+                <div class="form-group">
+                    <label>Cliente *</label>
+                    <select id="clientSelect" required onchange="loadClientData()">
+                        <option value="">Cargando clientes...</option>
+                    </select>
+                </div>
+
+                <div id="clientInfo"></div>
+
+                <div class="form-group" id="equipmentSelectGroup" style="display:none;">
+                    <label>Seleccionar Equipo</label>
+                    <select id="equipmentSelect" onchange="loadEquipmentData()">
+                        <option value="">Selecciona un equipo...</option>
+                    </select>
+                    <button type="button" class="new-equipment-btn" onclick="openNewEquipmentModal()">
+                        + Registrar Nuevo Equipo
+                    </button>
+                </div>
+
+                <div id="equipmentInfo"></div>
+
+                <!-- Equipment Work Section (appears after selecting equipment) -->
+                <div id="equipmentWorkSection" style="display:none;">
+                    <div class="info-card" style="background: #f0f9ff; border-left-color: #0ea5e9;">
+                        <h3>📋 Trabajo Realizado en este Equipo</h3>
+                        
+                        <div class="form-group">
+                            <label>Trabajos Realizados *</label>
+                            <div class="checkbox-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="trabajo_limpieza_general" value="Limpieza general">
+                                    <label for="trabajo_limpieza_general">Limpieza general</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="trabajo_limpieza_cabezal" value="Limpieza cabezal">
+                                    <label for="trabajo_limpieza_cabezal">Limpieza cabezal</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="trabajo_limpieza_filtro" value="Limpieza filtro de aire">
+                                    <label for="trabajo_limpieza_filtro">Limpieza filtro de aire</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="trabajo_llenado_insumos" value="Llenado de insumos">
+                                    <label for="trabajo_llenado_insumos">Llenado de insumos</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="trabajo_verificacion" value="Verificación de su funcionamiento">
+                                    <label for="trabajo_verificacion">Verificación de su funcionamiento</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Parámetros</label>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                                <div>
+                                    <label style="font-weight: normal; font-size: 13px;">Horas de uso de filtro</label>
+                                    <input type="text" id="param_horas_filtro" placeholder="Ej: 120">
+                                </div>
+                                <div>
+                                    <label style="font-weight: normal; font-size: 13px;">Presión de bomba</label>
+                                    <input type="text" id="param_presion_bomba" placeholder="Ej: 60 PSI">
+                                </div>
+                                <div>
+                                    <label style="font-weight: normal; font-size: 13px;">Viscosidad</label>
+                                    <input type="text" id="param_viscosidad" placeholder="Ej: 25 cp">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Materiales Utilizados</label>
+                            <div style="overflow-x: auto;">
+                                <table style="width: 100%; border-collapse: collapse; border: 2px solid #e0e0e0;">
+                                    <thead>
+                                        <tr style="background: #f8f9ff;">
+                                            <th style="border: 1px solid #e0e0e0; padding: 10px; text-align: left; width: 15%;">Cantidad</th>
+                                            <th style="border: 1px solid #e0e0e0; padding: 10px; text-align: left; width: 50%;">Descripción</th>
+                                            <th style="border: 1px solid #e0e0e0; padding: 10px; text-align: left; width: 35%;">Referencia</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="materialsTableBody">
+                                        <tr>
+                                            <td style="border: 1px solid #e0e0e0; padding: 5px;">
+                                                <input type="number" id="mat_cant_1" min="0" max="999" style="width: 100%; border: none; padding: 5px;" placeholder="0">
+                                            </td>
+                                            <td style="border: 1px solid #e0e0e0; padding: 5px;">
+                                                <input type="text" id="mat_desc_1" style="width: 100%; border: none; padding: 5px;" placeholder="Descripción del material">
+                                            </td>
+                                            <td style="border: 1px solid #e0e0e0; padding: 5px;">
+                                                <input type="text" id="mat_ref_1" style="width: 100%; border: none; padding: 5px;" placeholder="REF-001">
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid #e0e0e0; padding: 5px;">
+                                                <input type="number" id="mat_cant_2" min="0" max="999" style="width: 100%; border: none; padding: 5px;" placeholder="0">
+                                            </td>
+                                            <td style="border: 1px solid #e0e0e0; padding: 5px;">
+                                                <input type="text" id="mat_desc_2" style="width: 100%; border: none; padding: 5px;" placeholder="">
+                                            </td>
+                                            <td style="border: 1px solid #e0e0e0; padding: 5px;">
+                                                <input type="text" id="mat_ref_2" style="width: 100%; border: none; padding: 5px;" placeholder="">
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid #e0e0e0; padding: 5px;">
+                                                <input type="number" id="mat_cant_3" min="0" max="999" style="width: 100%; border: none; padding: 5px;" placeholder="0">
+                                            </td>
+                                            <td style="border: 1px solid #e0e0e0; padding: 5px;">
+                                                <input type="text" id="mat_desc_3" style="width: 100%; border: none; padding: 5px;" placeholder="">
+                                            </td>
+                                            <td style="border: 1px solid #e0e0e0; padding: 5px;">
+                                                <input type="text" id="mat_ref_3" style="width: 100%; border: none; padding: 5px;" placeholder="">
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <button type="button" onclick="addMaterialRow()" style="margin-top: 10px; background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;">+ Agregar Fila</button>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Observaciones del Equipo</label>
+                            <textarea id="equipment_observations" placeholder="Observaciones específicas sobre este equipo..." style="min-height: 80px;"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Imágenes</label>
+                            <input type="file" id="equipment_images" accept="image/*" multiple style="padding: 10px; border: 2px dashed #e0e0e0; border-radius: 8px; width: 100%; cursor: pointer;">
+                            <p style="font-size: 12px; color: #666; margin-top: 5px;">
+                                📸 Puedes seleccionar múltiples imágenes (fotos del equipo, trabajo realizado, etc.)
+                            </p>
+                            <div id="images_preview" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;"></div>
+                        </div>
+
+                        <button type="button" class="submit-btn" onclick="addEquipmentToReport()" style="background: #10b981;">
+                            ✓ Guardar Trabajo de Este Equipo y Continuar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Added Equipments List -->
+                <div id="addedEquipmentsList" style="display:none; margin: 20px 0;">
+                    <h3 style="color: #333; margin-bottom: 15px;">Equipos Agregados al Reporte:</h3>
+                    <div id="addedEquipmentsContainer"></div>
+                    <button type="button" class="new-equipment-btn" onclick="addAnotherEquipment()">
+                        + Agregar Otro Equipo al Reporte
+                    </button>
+                </div>
+
+                <div class="form-group">
+                    <label>Tipo de Servicio *</label>
+                    <select id="serviceType" required>
+                        <option value="">Selecciona...</option>
+                        <option value="preventivo">Mantenimiento Preventivo</option>
+                        <option value="correctivo">Mantenimiento Correctivo</option>
+                        <option value="reparacion">Reparación</option>
+                        <option value="instalacion">Instalación</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Hora de Entrada *</label>
+                    <input type="time" id="horaEntrada" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Hora de Salida *</label>
+                    <input type="time" id="horaSalida" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Horas Trabajadas</label>
+                    <input type="text" id="horasTrabajadas" readonly style="background: #f0f0f0; cursor: not-allowed;" placeholder="Se calcula automáticamente">
+                </div>
+
+                <div class="form-group">
+                    <label>Observaciones Generales</label>
+                    <textarea id="observaciones" placeholder="Comentarios adicionales, recomendaciones o notas importantes sobre el servicio completo"></textarea>
+                </div>
+
+                <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0ea5e9;">
+                    <h3 style="color: #0369a1; margin-bottom: 15px;">👤 Persona que Recibe el Servicio</h3>
+                    
+                    <div class="form-group">
+                        <label>Nombre Completo *</label>
+                        <input type="text" id="receptorNombre" required placeholder="Ej: Juan Pérez">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Cargo *</label>
+                        <input type="text" id="receptorCargo" required placeholder="Ej: Jefe de Producción">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Firma (Opcional)</label>
+                        <canvas id="signatureCanvas" style="border: 2px solid #e0e0e0; border-radius: 8px; width: 100%; height: 150px; background: white; touch-action: none; cursor: crosshair;"></canvas>
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button type="button" onclick="clearSignature()" style="padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                                🗑️ Limpiar Firma
+                            </button>
+                            <span style="font-size: 12px; color: #666; display: flex; align-items: center;">
+                                📱 Dibuja con tu dedo (celular) o mouse (PC)
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submitBtn" style="display:none;">📤 Enviar Reporte Completo para Aprobación</button>
+            </form>
+        </div>
+
+        <!-- Admin View -->
+        <div class="main-content" id="adminView">
+            <!-- Password Protection -->
+            <div id="adminPasswordPrompt" style="max-width: 400px; margin: 100px auto; text-align: center;">
+                <h2>🔒 Acceso Administrativo</h2>
+                <p style="color: #666; margin: 20px 0;">Ingresa la contraseña para continuar</p>
+                <input type="password" id="adminPassword" placeholder="Contraseña" style="width: 100%; padding: 15px; font-size: 16px; border: 2px solid #e0e0e0; border-radius: 8px; margin-bottom: 15px;">
+                <button onclick="checkAdminPassword()" style="width: 100%; padding: 15px; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
+                    Acceder
+                </button>
+                <button onclick="backToRoleSelector()" style="width: 100%; padding: 15px; background: transparent; color: #667eea; border: 2px solid #667eea; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px;">
+                    ← Volver
+                </button>
+                <p id="passwordError" style="color: #ef4444; margin-top: 15px; display: none;">❌ Contraseña incorrecta</p>
+            </div>
+
+            <!-- Admin Panel (hidden until password is correct) -->
+            <div id="adminPanel" style="display: none;">
+                <div class="header">
+                    <h2>🛠️ Panel de Administración</h2>
+                    <button class="back-btn" onclick="backToRoleSelector()">← Volver</button>
+                </div>
+
+                <div class="success-message" id="adminSuccessMessage"></div>
+
+                <!-- Tabs -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0;">
+                    <button id="tabReportes" onclick="switchAdminTab('reportes')" style="padding: 15px 30px; background: transparent; border: none; border-bottom: 3px solid #667eea; color: #667eea; font-weight: 600; cursor: pointer; font-size: 16px;">
+                        📋 Reportes
+                    </button>
+                    <button id="tabEquipos" onclick="switchAdminTab('equipos')" style="padding: 15px 30px; background: transparent; border: none; border-bottom: 3px solid transparent; color: #666; font-weight: 600; cursor: pointer; font-size: 16px;">
+                        ⚙️ Gestión de Equipos
+                    </button>
+                </div>
+
+                <!-- Tab Content: Reportes -->
+                <div id="contentReportes">
+                    <h3 style="color: #333; margin-bottom: 20px;">Reportes Pendientes de Aprobación</h3>
+                    <div class="pending-reports" id="pendingReports">
+                        <div class="loading">
+                            <div class="loading-spinner"></div>
+                            <p>Cargando reportes...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab Content: Gestión de Equipos -->
+                <div id="contentEquipos" style="display: none;">
+                    <h3 style="color: #333; margin-bottom: 20px;">Gestión de Equipos por Cliente</h3>
+                    
+                    <div class="form-group" style="max-width: 500px;">
+                        <label>Selecciona un Cliente</label>
+                        <select id="adminClientSelect" onchange="loadClientEquipments()">
+                            <option value="">Selecciona un cliente...</option>
+                        </select>
+                    </div>
+
+                    <div id="adminEquipmentActions" style="display: none; margin: 20px 0;">
+                        <button onclick="openAdminNewEquipmentModal()" class="new-equipment-btn">
+                            + Agregar Nuevo Equipo para este Cliente
+                        </button>
+                    </div>
+
+                    <div id="clientEquipmentsList" style="margin-top: 30px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for New Equipment -->
+    <div class="modal" id="newEquipmentModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>➕ Registrar Nuevo Equipo</h3>
+                <button class="close-modal" onclick="closeNewEquipmentModal()">×</button>
+            </div>
+            <form id="newEquipmentForm">
+                <div class="form-group">
+                    <label>Equipo # *</label>
+                    <input type="text" id="newEquipmentNumber" required placeholder="Ej: 001">
+                </div>
+                <div class="form-group">
+                    <label>Modelo del Equipo *</label>
+                    <input type="text" id="newEquipmentModel" required placeholder="Ej: Rotuladora XYZ-500">
+                </div>
+                <div class="form-group">
+                    <label>Número de Serie *</label>
+                    <input type="text" id="newEquipmentSerial" required placeholder="Ej: SN-123456">
+                </div>
+                <div class="form-group">
+                    <label>Notas Adicionales</label>
+                    <textarea id="newEquipmentNotes" placeholder="Características especiales, información adicional..."></textarea>
+                </div>
+                <button type="button" class="submit-btn" id="newEquipmentSubmitBtn" onclick="saveNewEquipment()">💾 Guardar Equipo</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Editing Report -->
+    <div class="modal" id="editReportModal">
+        <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3>✏️ Editar Reporte</h3>
+                <button class="close-modal" onclick="closeEditReportModal()">×</button>
+            </div>
+            <div id="editReportContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Editing Equipment -->
+    <div class="modal" id="editEquipmentModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Editar Equipo</h3>
+                <button class="close-modal" onclick="closeEditEquipmentModal()">×</button>
+            </div>
+            <form id="editEquipmentForm">
+                <input type="hidden" id="editEquipmentId">
+                <div class="form-group">
+                    <label>Equipo # *</label>
+                    <input type="text" id="editEquipmentNumber" required>
+                </div>
+                <div class="form-group">
+                    <label>Modelo del Equipo *</label>
+                    <input type="text" id="editEquipmentModel" required>
+                </div>
+                <div class="form-group">
+                    <label>Número de Serie *</label>
+                    <input type="text" id="editEquipmentSerial" required>
+                </div>
+                <div class="form-group">
+                    <label>Notas Adicionales</label>
+                    <textarea id="editEquipmentNotes"></textarea>
+                </div>
+                <button type="button" class="submit-btn" onclick="saveEditedEquipment()">💾 Guardar Cambios</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Admin New Equipment -->
+    <div class="modal" id="adminNewEquipmentModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>➕ Agregar Nuevo Equipo</h3>
+                <button class="close-modal" onclick="closeAdminNewEquipmentModal()">×</button>
+            </div>
+            <form id="adminNewEquipmentForm">
+                <div class="form-group">
+                    <label>Equipo # *</label>
+                    <input type="text" id="adminNewEquipmentNumber" required placeholder="Ej: 001">
+                </div>
+                <div class="form-group">
+                    <label>Modelo del Equipo *</label>
+                    <input type="text" id="adminNewEquipmentModel" required placeholder="Ej: Rotuladora XYZ-500">
+                </div>
+                <div class="form-group">
+                    <label>Número de Serie *</label>
+                    <input type="text" id="adminNewEquipmentSerial" required placeholder="Ej: SN-123456">
+                </div>
+                <div class="form-group">
+                    <label>Notas Adicionales</label>
+                    <textarea id="adminNewEquipmentNotes" placeholder="Características especiales, información adicional..."></textarea>
+                </div>
+                <button type="button" class="submit-btn" onclick="saveAdminNewEquipment()">💾 Guardar Equipo</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Adding Equipment from Admin -->
+    <div class="modal" id="addEquipmentAdminModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>➕ Agregar Nuevo Equipo</h3>
+                <button class="close-modal" onclick="closeAddEquipmentAdminModal()">×</button>
+            </div>
+            <form id="addEquipmentAdminForm">
+                <input type="hidden" id="adminClientForNewEquipment">
+                <div class="form-group">
+                    <label>Equipo # *</label>
+                    <input type="text" id="addEquipmentNumberAdmin" required placeholder="Ej: 001">
+                </div>
+                <div class="form-group">
+                    <label>Modelo del Equipo *</label>
+                    <input type="text" id="addEquipmentModelAdmin" required placeholder="Ej: Rotuladora XYZ-500">
+                </div>
+                <div class="form-group">
+                    <label>Número de Serie *</label>
+                    <input type="text" id="addEquipmentSerialAdmin" required placeholder="Ej: SN-123456">
+                </div>
+                <div class="form-group">
+                    <label>Notas Adicionales</label>
+                    <textarea id="addEquipmentNotesAdmin" placeholder="Características especiales, información adicional..."></textarea>
+                </div>
+                <button type="button" class="submit-btn" id="addEquipmentAdminBtn" onclick="saveNewEquipmentFromAdmin()">💾 Guardar Equipo</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase Status Indicator -->
+    <div class="firebase-status connected" id="firebaseStatus">
+        <span>🔥</span>
+        <span>Conectado a Firebase</span>
+    </div>
+
+    <!-- Firebase SDK - Traditional Loading (Compatible with file://) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <script>
+        console.log('🔄 Script de Firebase cargado');
+        console.log('🔍 firebase disponible:', typeof firebase !== 'undefined' ? 'SÍ' : 'NO');
+        
+        if (typeof firebase === 'undefined') {
+            console.error('❌ Firebase no se cargó desde el CDN');
+            console.error('Posibles causas:');
+            console.error('1. Sin conexión a internet');
+            console.error('2. Bloqueador de anuncios bloqueando googleapis.com');
+            console.error('3. Firewall bloqueando el CDN');
+            alert('Error: No se pudo cargar Firebase. Verifica tu conexión a internet.');
+        } else {
+            console.log('🔄 Inicializando Firebase (modo compat)...');
+            
+            // Your Firebase configuration
+            const firebaseConfig = {
+                apiKey: "AIzaSyD2d8Ih9DlA9p_FWAiFabzrjiSC58trJsU",
+                authDomain: "reportera-mantenimiento.firebaseapp.com",
+                projectId: "reportera-mantenimiento",
+                storageBucket: "reportera-mantenimiento.firebasestorage.app",
+                messagingSenderId: "680639848916",
+                appId: "1:680639848916:web:4e908d1b6566b6b0257641"
+            };
+
+            try {
+                // Initialize Firebase
+                firebase.initializeApp(firebaseConfig);
+                const db = firebase.firestore();
+
+                console.log('🗄️ Firestore inicializado');
+
+                // Make Firebase available globally
+                window.db = db;
+                window.firebase = firebase;
+                window.firebaseReady = true;
+
+                console.log('✅ Firebase inicializado correctamente');
+                console.log('🔍 window.firebaseReady =', window.firebaseReady);
+                console.log('🔍 window.db =', window.db ? 'EXISTE' : 'NO EXISTE');
+            } catch (error) {
+                console.error('❌ Error al inicializar Firebase:', error);
+                alert('Error al inicializar Firebase: ' + error.message);
+            }
+        }
+    </script>
+
+    <!-- Global Functions -->
+    <script>
+        // Initialize the promise before anything else
+        let firebaseReadyResolve;
+        window.waitForFirebase = new Promise((resolve) => {
+            firebaseReadyResolve = resolve;
+        });
+        
+        // Also expose the resolver globally
+        window.resolveFirebaseReady = firebaseReadyResolve;
+        
+        // Airtable configuration
+        const AIRTABLE_TOKEN = 'patfct6uVOEymv0Mi.0b9ab712a5229db4c7eefc44d0174e458aabeeead2f4c70e8c4a9fb21cac744d';
+        const AIRTABLE_BASE_ID = 'appZR5HyyKvRk6rhJ';
+        const AIRTABLE_TABLE_NAME = 'Gestión de Clientes';
+        
+        // Store clients data globally
+        let clientsData = {};
+        let clientsLoaded = false;
+
+        // Load clients from Airtable
+        async function loadClientsFromAirtable() {
+            console.log('📡 Cargando clientes desde Airtable...');
+            
+            // Try multiple possible table names
+            const possibleTableNames = [
+                'Gestión de Clientes',
+                'Gestion de Clientes',
+                'Clientes',
+                'CLIENTES'
+            ];
+            
+            for (const tableName of possibleTableNames) {
+                try {
+                    console.log(`🔍 Intentando con tabla: "${tableName}"`);
+                    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableName)}`;
+                    
+                    const response = await fetch(url, {
+                        headers: {
+                            'Authorization': `Bearer ${AIRTABLE_TOKEN}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log('📊 Datos recibidos de Airtable:', data);
+
+                        // Transform Airtable records to our format
+                        clientsData = {};
+                        data.records.forEach((record, index) => {
+                            const fields = record.fields;
+                            const clientId = `client_${record.id}`;
+                            
+                            clientsData[clientId] = {
+                                id: clientId,
+                                recordId: record.id,
+                                name: fields['Empresa o razón social'] || fields['Nombre de Cliente'] || fields['Nombre del cliente'] || 'Sin nombre',
+                                razonSocial: fields['Empresa o razón social'] || fields['Nombre de Cliente'] || '',
+                                documento: fields['Documento / NIT'] || fields['NIT'] || '',
+                                telefono: fields['Teléfono'] || fields['Telefono'] || '',
+                                email: fields['Correo electrónico'] || fields['Email'] || '',
+                                ciudad: fields['Ciudad'] || '',
+                                direccion: fields['Dirección'] || fields['Direccion'] || ''
+                            };
+                        });
+
+                        console.log(`✅ Clientes cargados desde Airtable (tabla: ${tableName}):`, Object.keys(clientsData).length);
+                        clientsLoaded = true;
+                        return true;
+                    } else {
+                        console.log(`❌ Error con tabla "${tableName}": ${response.status}`);
+                    }
+                } catch (error) {
+                    console.log(`❌ Error intentando tabla "${tableName}":`, error.message);
+                }
+            }
+            
+            // If all table names failed, show detailed error
+            console.error('❌ No se pudo cargar desde ninguna tabla');
+            alert('No se pudo encontrar la tabla de clientes en Airtable. Verifica los permisos del token.');
+            return false;
+        }
+
+        function selectRole(role) {
+            console.log('🎯 selectRole llamado con:', role);
+            
+            document.getElementById('roleSelector').style.display = 'none';
+            
+            if (role === 'empleado' || role === 'employee') {
+                document.getElementById('employeeView').style.display = 'block';
+                // Initialize signature canvas after view is shown
+                setTimeout(initSignatureCanvas, 100);
+            } else if (role === 'administrador' || role === 'admin') {
+                // Admin - show password prompt
+                document.getElementById('adminView').style.display = 'block';
+                document.getElementById('adminPasswordPrompt').style.display = 'block';
+                document.getElementById('adminPanel').style.display = 'none';
+            }
+        }
+
+        function initSignatureCanvas() {
+            console.log('🎨 Inicializando canvas de firma...');
+            signatureCanvas = document.getElementById('signatureCanvas');
+            
+            if (!signatureCanvas) {
+                console.error('❌ Canvas no encontrado');
+                return;
+            }
+            
+            console.log('✅ Canvas encontrado');
+            signatureCtx = signatureCanvas.getContext('2d');
+            
+            // Set canvas size to match display size
+            const rect = signatureCanvas.getBoundingClientRect();
+            signatureCanvas.width = rect.width;
+            signatureCanvas.height = rect.height;
+            signatureCtx.strokeStyle = '#000';
+            signatureCtx.lineWidth = 3;
+            signatureCtx.lineCap = 'round';
+            signatureCtx.lineJoin = 'round';
+            
+            console.log('📐 Canvas size:', signatureCanvas.width, 'x', signatureCanvas.height);
+            
+            // Mouse events
+            signatureCanvas.addEventListener('mousedown', function(e) {
+                console.log('🖱️ Mouse down detectado');
+                startDrawing(e);
+            });
+            
+            signatureCanvas.addEventListener('mousemove', function(e) {
+                draw(e);
+            });
+            
+            signatureCanvas.addEventListener('mouseup', function(e) {
+                console.log('🖱️ Mouse up detectado');
+                stopDrawing();
+            });
+            
+            signatureCanvas.addEventListener('mouseleave', function(e) {
+                console.log('🖱️ Mouse leave detectado');
+                stopDrawing();
+            });
+            
+            // Touch events for mobile
+            signatureCanvas.addEventListener('touchstart', function(e) {
+                console.log('👆 Touch start detectado');
+                e.preventDefault();
+                const touch = e.touches[0];
+                const rect = signatureCanvas.getBoundingClientRect();
+                const mouseEvent = {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                };
+                startDrawing(mouseEvent);
+            }, { passive: false });
+            
+            signatureCanvas.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                if (!isDrawing) return;
+                const touch = e.touches[0];
+                const rect = signatureCanvas.getBoundingClientRect();
+                const x = touch.clientX - rect.left;
+                const y = touch.clientY - rect.top;
+                signatureCtx.lineTo(x, y);
+                signatureCtx.stroke();
+            }, { passive: false });
+            
+            signatureCanvas.addEventListener('touchend', function(e) {
+                console.log('👆 Touch end detectado');
+                stopDrawing();
+            });
+            
+            console.log('✅ Event listeners agregados al canvas');
+        }
+
+        function backToRoleSelector() {
+            document.getElementById('roleSelector').style.display = 'block';
+            document.getElementById('employeeView').style.display = 'none';
+            document.getElementById('adminView').style.display = 'none';
+        }
+
+        function openNewEquipmentModal() {
+            console.log('🆕 openNewEquipmentModal llamada');
+            
+            const clientId = document.getElementById('clientSelect').value;
+            console.log('Cliente ID:', clientId);
+            
+            if (!clientId) {
+                alert('Por favor selecciona un cliente primero');
+                return;
+            }
+            
+            console.log('📝 Abriendo modal...');
+            document.getElementById('newEquipmentModal').style.display = 'flex';
+            console.log('✅ Modal abierto');
+        }
+
+        function closeNewEquipmentModal() {
+            document.getElementById('newEquipmentModal').style.display = 'none';
+            document.getElementById('newEquipmentForm').reset();
+        }
+
+        async function saveNewEquipment() {
+            console.log('💾 saveNewEquipment llamada');
+            
+            const submitBtn = document.getElementById('newEquipmentSubmitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '💾 Guardando...';
+
+            const clientId = document.getElementById('clientSelect').value;
+            
+            const newEquipment = {
+                clientId: clientId,
+                equipmentNumber: document.getElementById('newEquipmentNumber').value,
+                model: document.getElementById('newEquipmentModel').value,
+                serial: document.getElementById('newEquipmentSerial').value,
+                notes: document.getElementById('newEquipmentNotes').value
+            };
+
+            console.log('📦 Datos del equipo:', newEquipment);
+
+            // Validate required fields
+            if (!newEquipment.equipmentNumber || !newEquipment.model || !newEquipment.serial) {
+                showError('⚠️ Por favor completa los campos requeridos (Equipo #, Modelo y Serie)');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '💾 Guardar Equipo';
+                return;
+            }
+
+            try {
+                // Simple wait for Firebase - check every 100ms up to 5 seconds
+                console.log('⏳ Esperando Firebase...');
+                let attempts = 0;
+                while (!window.firebaseReady && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                    if (attempts % 10 === 0) {
+                        console.log(`⏳ Intento ${attempts}/50...`);
+                    }
+                }
+                
+                if (!window.firebaseReady || !window.db) {
+                    throw new Error('Firebase no se inicializó después de 5 segundos. Por favor recarga la página.');
+                }
+                
+                console.log('🔥 Firebase listo para guardar');
+                
+                newEquipment.createdAt = firebase.firestore.Timestamp.now();
+                
+                console.log('📤 Enviando a Firebase...');
+                const docRef = await window.db.collection('equipments').add(newEquipment);
+                
+                console.log('✅ Equipo guardado con ID:', docRef.id);
+
+                // Reload equipment select
+                console.log('🔄 Recargando lista de equipos...');
+                await loadClientData();
+
+                // Select the new equipment
+                document.getElementById('equipmentSelect').value = docRef.id;
+                await loadEquipmentData();
+
+                closeNewEquipmentModal();
+                showSuccess('✓ Equipo registrado exitosamente en Firebase (ID: ' + docRef.id + ')');
+            } catch (error) {
+                console.error('❌ Error guardando equipo:', error);
+                showError('Error al guardar el equipo: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '💾 Guardar Equipo';
+            }
+        }
+
+        function showSuccess(message) {
+            const successMsg = document.getElementById('successMessage');
+            successMsg.textContent = message;
+            successMsg.style.display = 'block';
+            setTimeout(() => {
+                successMsg.style.display = 'none';
+            }, 5000);
+        }
+
+        function showError(message) {
+            const errorMsg = document.getElementById('errorMessage');
+            errorMsg.textContent = message;
+            errorMsg.style.display = 'block';
+            setTimeout(() => {
+                errorMsg.style.display = 'none';
+            }, 5000);
+        }
+
+        // Store equipments added to current report
+        window.reportEquipments = [];
+        let materialRowCounter = 3;
+        let currentEquipmentImages = [];
+
+        // Signature canvas setup
+        let signatureCanvas = null;
+        let signatureCtx = null;
+        let isDrawing = false;
+        let hasSignature = false;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-calculate worked hours
+            const horaEntrada = document.getElementById('horaEntrada');
+            const horaSalida = document.getElementById('horaSalida');
+            const horasTrabajadas = document.getElementById('horasTrabajadas');
+            
+            if (horaEntrada && horaSalida && horasTrabajadas) {
+                const calculateHours = () => {
+                    if (horaEntrada.value && horaSalida.value) {
+                        const [entradaHora, entradaMin] = horaEntrada.value.split(':').map(Number);
+                        const [salidaHora, salidaMin] = horaSalida.value.split(':').map(Number);
+                        
+                        let totalMinutes = (salidaHora * 60 + salidaMin) - (entradaHora * 60 + entradaMin);
+                        
+                        if (totalMinutes < 0) {
+                            totalMinutes += 24 * 60; // Handle overnight
+                        }
+                        
+                        const hours = Math.floor(totalMinutes / 60);
+                        const minutes = totalMinutes % 60;
+                        
+                        horasTrabajadas.value = `${hours}h ${minutes}min (${(totalMinutes / 60).toFixed(2)} horas)`;
+                    }
+                };
+                
+                horaEntrada.addEventListener('change', calculateHours);
+                horaSalida.addEventListener('change', calculateHours);
+            }
+        });
+
+        function startDrawing(e) {
+            console.log('✏️ startDrawing llamado', e);
+            isDrawing = true;
+            hasSignature = true;
+            const rect = signatureCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            console.log('📍 Posición inicial:', x, y);
+            signatureCtx.beginPath();
+            signatureCtx.moveTo(x, y);
+        }
+
+        function draw(e) {
+            if (!isDrawing) {
+                console.log('⏸️ No dibujando (isDrawing=false)');
+                return;
+            }
+            const rect = signatureCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            console.log('✏️ Dibujando en:', x, y);
+            signatureCtx.lineTo(x, y);
+            signatureCtx.stroke();
+        }
+
+        function stopDrawing() {
+            console.log('🛑 stopDrawing llamado');
+            isDrawing = false;
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousedown', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            signatureCanvas.dispatchEvent(mouseEvent);
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (!isDrawing) return;
+            const touch = e.touches[0];
+            const rect = signatureCanvas.getBoundingClientRect();
+            signatureCtx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+            signatureCtx.stroke();
+        }
+
+        function clearSignature() {
+            signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+            hasSignature = false;
+        }
+
+        function getSignatureData() {
+            return signatureCanvas.toDataURL('image/png');
+        }
+
+        // Handle image preview
+        document.addEventListener('DOMContentLoaded', function() {
+            const imageInput = document.getElementById('equipment_images');
+            if (imageInput) {
+                imageInput.addEventListener('change', function(e) {
+                    const preview = document.getElementById('images_preview');
+                    preview.innerHTML = '';
+                    currentEquipmentImages = [];
+                    
+                    const files = Array.from(e.target.files);
+                    files.forEach((file, index) => {
+                        if (file.type.startsWith('image/')) {
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                currentEquipmentImages.push({
+                                    name: file.name,
+                                    data: e.target.result,
+                                    type: file.type
+                                });
+                                
+                                const imgContainer = document.createElement('div');
+                                imgContainer.style.cssText = 'position: relative; width: 100px; height: 100px;';
+                                imgContainer.innerHTML = `
+                                    <img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 2px solid #e0e0e0;">
+                                    <button onclick="removeImage(${index})" style="position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 14px; line-height: 1;">×</button>
+                                `;
+                                preview.appendChild(imgContainer);
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    });
+                });
+            }
+        });
+
+        window.removeImage = function(index) {
+            currentEquipmentImages.splice(index, 1);
+            const imageInput = document.getElementById('equipment_images');
+            imageInput.value = '';
+            const preview = document.getElementById('images_preview');
+            preview.innerHTML = '';
+            currentEquipmentImages.forEach((img, i) => {
+                const imgContainer = document.createElement('div');
+                imgContainer.style.cssText = 'position: relative; width: 100px; height: 100px;';
+                imgContainer.innerHTML = `
+                    <img src="${img.data}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 2px solid #e0e0e0;">
+                    <button onclick="removeImage(${i})" style="position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 14px; line-height: 1;">×</button>
+                `;
+                preview.appendChild(imgContainer);
+            });
+        };
+
+        function addMaterialRow() {
+            materialRowCounter++;
+            const tbody = document.getElementById('materialsTableBody');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td style="border: 1px solid #e0e0e0; padding: 5px;">
+                    <input type="number" id="mat_cant_${materialRowCounter}" min="0" max="999" style="width: 100%; border: none; padding: 5px;" placeholder="0">
+                </td>
+                <td style="border: 1px solid #e0e0e0; padding: 5px;">
+                    <input type="text" id="mat_desc_${materialRowCounter}" style="width: 100%; border: none; padding: 5px;" placeholder="">
+                </td>
+                <td style="border: 1px solid #e0e0e0; padding: 5px;">
+                    <input type="text" id="mat_ref_${materialRowCounter}" style="width: 100%; border: none; padding: 5px;" placeholder="">
+                </td>
+            `;
+            tbody.appendChild(newRow);
+        }
+
+        function addEquipmentToReport() {
+            // Get selected trabajos
+            const trabajos = [];
+            document.querySelectorAll('[id^="trabajo_"]:checked').forEach(cb => {
+                trabajos.push(cb.value);
+            });
+
+            if (trabajos.length === 0) {
+                showError('⚠️ Por favor selecciona al menos un trabajo realizado');
+                return;
+            }
+
+            // Get parameters
+            const parametros = {
+                horasFiltro: document.getElementById('param_horas_filtro').value,
+                presionBomba: document.getElementById('param_presion_bomba').value,
+                viscosidad: document.getElementById('param_viscosidad').value
+            };
+
+            // Get materials
+            const materiales = [];
+            for (let i = 1; i <= materialRowCounter; i++) {
+                const cantInput = document.getElementById(`mat_cant_${i}`);
+                const descInput = document.getElementById(`mat_desc_${i}`);
+                const refInput = document.getElementById(`mat_ref_${i}`);
+                
+                if (cantInput && descInput && refInput) {
+                    const cant = cantInput.value.trim();
+                    const desc = descInput.value.trim();
+                    const ref = refInput.value.trim();
+                    
+                    if (cant || desc || ref) {
+                        materiales.push({ cantidad: cant, descripcion: desc, referencia: ref });
+                    }
+                }
+            }
+
+            // Get observations
+            const observations = document.getElementById('equipment_observations').value;
+
+            // Add equipment with its work to the report
+            const equipmentWork = {
+                equipment: window.currentEquipmentData,
+                trabajos: trabajos,
+                parametros: parametros,
+                materiales: materiales,
+                observations: observations,
+                images: [...currentEquipmentImages] // Copy images array
+            };
+
+            window.reportEquipments.push(equipmentWork);
+
+            // Show in added equipments list
+            showAddedEquipment(equipmentWork, window.reportEquipments.length - 1);
+
+            // Reset work form
+            resetEquipmentWorkForm();
+
+            // Hide work section and equipment info
+            document.getElementById('equipmentWorkSection').style.display = 'none';
+            document.getElementById('equipmentSelectGroup').style.display = 'none';
+            document.getElementById('equipmentInfo').innerHTML = '';
+
+            // Show added equipments list and submit button
+            document.getElementById('addedEquipmentsList').style.display = 'block';
+            document.getElementById('submitBtn').style.display = 'block';
+
+            showSuccess(`✓ Equipo #${equipmentWork.equipment.equipmentNumber} agregado al reporte`);
+        }
+
+        function showAddedEquipment(equipmentWork, index) {
+            const container = document.getElementById('addedEquipmentsContainer');
+            const card = document.createElement('div');
+            card.className = 'info-card';
+            card.style.background = '#e0f2fe';
+            card.style.borderLeftColor = '#0ea5e9';
+            card.style.marginBottom = '15px';
+            
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div style="flex: 1;">
+                        <h4 style="color: #0369a1; margin-bottom: 10px;">
+                            Equipo #${equipmentWork.equipment.equipmentNumber} - ${equipmentWork.equipment.model}
+                        </h4>
+                        <p style="font-size: 13px; color: #666; margin-bottom: 8px;">
+                            <strong>Trabajos:</strong> ${equipmentWork.trabajos.join(', ')}
+                        </p>
+                        ${equipmentWork.parametros.horasFiltro || equipmentWork.parametros.presionBomba || equipmentWork.parametros.viscosidad ? `
+                            <p style="font-size: 13px; color: #666; margin-bottom: 8px;">
+                                <strong>Parámetros:</strong>
+                                ${equipmentWork.parametros.horasFiltro ? `Horas filtro: ${equipmentWork.parametros.horasFiltro}` : ''}
+                                ${equipmentWork.parametros.presionBomba ? `, Presión: ${equipmentWork.parametros.presionBomba}` : ''}
+                                ${equipmentWork.parametros.viscosidad ? `, Viscosidad: ${equipmentWork.parametros.viscosidad}` : ''}
+                            </p>
+                        ` : ''}
+                        ${equipmentWork.materiales.length > 0 ? `
+                            <p style="font-size: 13px; color: #666; margin-bottom: 8px;">
+                                <strong>Materiales:</strong> ${equipmentWork.materiales.length} item(s)
+                            </p>
+                        ` : ''}
+                        ${equipmentWork.observations ? `
+                            <p style="font-size: 13px; color: #666; margin-bottom: 8px;">
+                                <strong>Observaciones:</strong> ${equipmentWork.observations.substring(0, 100)}${equipmentWork.observations.length > 100 ? '...' : ''}
+                            </p>
+                        ` : ''}
+                        ${equipmentWork.images && equipmentWork.images.length > 0 ? `
+                            <p style="font-size: 13px; color: #666;">
+                                <strong>Imágenes:</strong> ${equipmentWork.images.length} foto(s) adjuntada(s) 📸
+                            </p>
+                        ` : ''}
+                    </div>
+                    <button onclick="removeEquipmentFromReport(${index})" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                        Eliminar
+                    </button>
+                </div>
+            `;
+            
+            container.appendChild(card);
+        }
+
+        function removeEquipmentFromReport(index) {
+            if (confirm('¿Eliminar este equipo del reporte?')) {
+                window.reportEquipments.splice(index, 1);
+                
+                // Rebuild list
+                const container = document.getElementById('addedEquipmentsContainer');
+                container.innerHTML = '';
+                window.reportEquipments.forEach((eq, i) => showAddedEquipment(eq, i));
+
+                if (window.reportEquipments.length === 0) {
+                    document.getElementById('addedEquipmentsList').style.display = 'none';
+                    document.getElementById('submitBtn').style.display = 'none';
+                }
+            }
+        }
+
+        function addAnotherEquipment() {
+            // Show equipment selection again
+            document.getElementById('equipmentSelectGroup').style.display = 'block';
+            document.getElementById('equipmentSelect').value = '';
+            document.getElementById('equipmentInfo').innerHTML = '';
+            document.getElementById('equipmentWorkSection').style.display = 'none';
+            
+            // Scroll to equipment selection
+            document.getElementById('equipmentSelectGroup').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function resetEquipmentWorkForm() {
+            // Uncheck all trabajos
+            document.querySelectorAll('[id^="trabajo_"]').forEach(cb => cb.checked = false);
+            
+            // Clear parameters
+            document.getElementById('param_horas_filtro').value = '';
+            document.getElementById('param_presion_bomba').value = '';
+            document.getElementById('param_viscosidad').value = '';
+            
+            // Clear materials (keep first 3 rows, reset values)
+            for (let i = 1; i <= 3; i++) {
+                document.getElementById(`mat_cant_${i}`).value = '';
+                document.getElementById(`mat_desc_${i}`).value = '';
+                document.getElementById(`mat_ref_${i}`).value = '';
+            }
+            
+            // Remove extra material rows
+            const tbody = document.getElementById('materialsTableBody');
+            while (tbody.children.length > 3) {
+                tbody.removeChild(tbody.lastChild);
+            }
+            materialRowCounter = 3;
+            
+            // Clear observations
+            document.getElementById('equipment_observations').value = '';
+            
+            // Clear images
+            document.getElementById('equipment_images').value = '';
+            document.getElementById('images_preview').innerHTML = '';
+            currentEquipmentImages = [];
+        }
+
+        // ===== ADMIN FUNCTIONS =====
+        
+        function checkAdminPassword() {
+            const password = document.getElementById('adminPassword').value;
+            const errorMsg = document.getElementById('passwordError');
+            
+            if (password === '420') {
+                // Correct password
+                document.getElementById('adminPasswordPrompt').style.display = 'none';
+                document.getElementById('adminPanel').style.display = 'block';
+                document.getElementById('adminPassword').value = '';
+                errorMsg.style.display = 'none';
+                
+                // Load clients for equipment management
+                loadAdminClients();
+                
+                // Load pending reports
+                loadPendingReports();
+            } else {
+                // Wrong password
+                errorMsg.style.display = 'block';
+                document.getElementById('adminPassword').value = '';
+            }
+        }
+
+        function switchAdminTab(tab) {
+            // Update tab buttons
+            const tabReportes = document.getElementById('tabReportes');
+            const tabEquipos = document.getElementById('tabEquipos');
+            
+            if (tab === 'reportes') {
+                tabReportes.style.borderBottom = '3px solid #667eea';
+                tabReportes.style.color = '#667eea';
+                tabEquipos.style.borderBottom = '3px solid transparent';
+                tabEquipos.style.color = '#666';
+                
+                document.getElementById('contentReportes').style.display = 'block';
+                document.getElementById('contentEquipos').style.display = 'none';
+            } else {
+                tabEquipos.style.borderBottom = '3px solid #667eea';
+                tabEquipos.style.color = '#667eea';
+                tabReportes.style.borderBottom = '3px solid transparent';
+                tabReportes.style.color = '#666';
+                
+                document.getElementById('contentReportes').style.display = 'none';
+                document.getElementById('contentEquipos').style.display = 'block';
+            }
+        }
+
+        async function loadAdminClients() {
+            const select = document.getElementById('adminClientSelect');
+            select.innerHTML = '<option value="">Selecciona un cliente...</option>';
+            
+            Object.values(clientsData).forEach(client => {
+                const option = document.createElement('option');
+                option.value = client.id;
+                option.textContent = client.name;
+                select.appendChild(option);
+            });
+        }
+
+        // Store selected client for admin operations
+        window.adminSelectedClient = null;
+
+        async function loadClientEquipments() {
+            const clientId = document.getElementById('adminClientSelect').value;
+            const container = document.getElementById('clientEquipmentsList');
+            const actionsDiv = document.getElementById('adminEquipmentActions');
+            
+            if (!clientId) {
+                container.innerHTML = '';
+                actionsDiv.style.display = 'none';
+                window.adminSelectedClient = null;
+                return;
+            }
+
+            window.adminSelectedClient = clientId;
+            actionsDiv.style.display = 'block';
+            container.innerHTML = '<p style="text-align: center; color: #666;">Cargando equipos...</p>';
+
+            try {
+                // Wait for Firebase
+                let attempts = 0;
+                while (!window.firebaseReady && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (!window.firebaseReady || !window.db) {
+                    throw new Error('Firebase no disponible');
+                }
+
+                const querySnapshot = await window.db.collection('equipments')
+                    .where('clientId', '==', clientId)
+                    .get();
+
+                if (querySnapshot.empty) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #999;">
+                            <p style="font-size: 48px;">📭</p>
+                            <p>Este cliente no tiene equipos registrados</p>
+                            <p style="font-size: 14px; margin-top: 10px;">Usa el botón de arriba para agregar uno</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Convert to array
+                const equipments = [];
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    equipments.push({
+                        id: doc.id,
+                        ...data,
+                        // Pre-calculate sort key
+                        sortKey: (() => {
+                            const num = String(data.equipmentNumber || '999').trim();
+                            // Extract first number found
+                            const match = num.match(/\d+/);
+                            return match ? parseInt(match[0]) : 999999;
+                        })()
+                    });
+                });
+
+                console.log('📋 Equipos ANTES de ordenar:');
+                equipments.forEach(e => console.log(`  ${e.equipmentNumber} (sortKey: ${e.sortKey}) - ${e.model}`));
+
+                // Sort by pre-calculated key
+                equipments.sort((a, b) => a.sortKey - b.sortKey);
+
+                console.log('📋 Equipos DESPUÉS de ordenar:');
+                equipments.forEach(e => console.log(`  ${e.equipmentNumber} (sortKey: ${e.sortKey}) - ${e.model}`));
+
+                container.innerHTML = '';
+                equipments.forEach((equipment) => {
+                    const card = document.createElement('div');
+                    card.className = 'info-card';
+                    card.style.marginBottom = '15px';
+                    
+                    card.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div style="flex: 1;">
+                                <h4 style="color: #667eea; margin-bottom: 10px;">
+                                    Equipo #${equipment.equipmentNumber || 'S/N'} - ${equipment.model}
+                                </h4>
+                                <p style="font-size: 14px; color: #666; margin-bottom: 5px;">
+                                    <strong>Serie:</strong> ${equipment.serial}
+                                </p>
+                                ${equipment.notes ? `
+                                    <p style="font-size: 14px; color: #666;">
+                                        <strong>Notas:</strong> ${equipment.notes}
+                                    </p>
+                                ` : ''}
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button onclick="openEditEquipmentModal('${equipment.id}')" style="background: #0ea5e9; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                                    ✏️ Editar
+                                </button>
+                                <button onclick="deleteEquipment('${equipment.id}', '${equipment.model}')" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                                    🗑️ Eliminar
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    container.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error cargando equipos:', error);
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #ef4444;">
+                        <p style="font-size: 48px;">⚠️</p>
+                        <p>Error al cargar equipos</p>
+                        <p style="font-size: 14px; margin-top: 10px;">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function openAdminNewEquipmentModal() {
+            document.getElementById('adminNewEquipmentModal').style.display = 'flex';
+        }
+
+        function closeAdminNewEquipmentModal() {
+            document.getElementById('adminNewEquipmentModal').style.display = 'none';
+            document.getElementById('adminNewEquipmentForm').reset();
+        }
+
+        async function saveAdminNewEquipment() {
+            const submitBtn = event.target;
+            submitBtn.disabled = true;
+            submitBtn.textContent = '💾 Guardando...';
+
+            const newEquipment = {
+                clientId: window.adminSelectedClient,
+                equipmentNumber: document.getElementById('adminNewEquipmentNumber').value,
+                model: document.getElementById('adminNewEquipmentModel').value,
+                serial: document.getElementById('adminNewEquipmentSerial').value,
+                notes: document.getElementById('adminNewEquipmentNotes').value
+            };
+
+            if (!newEquipment.equipmentNumber || !newEquipment.model || !newEquipment.serial) {
+                showError('⚠️ Por favor completa los campos requeridos');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '💾 Guardar Equipo';
+                return;
+            }
+
+            try {
+                let attempts = 0;
+                while (!window.firebaseReady && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (!window.firebaseReady || !window.db) {
+                    throw new Error('Firebase no disponible');
+                }
+
+                newEquipment.createdAt = firebase.firestore.Timestamp.now();
+                
+                const docRef = await window.db.collection('equipments').add(newEquipment);
+                
+                console.log('✅ Equipo guardado con ID:', docRef.id);
+
+                // Reload equipment list
+                await loadClientEquipments();
+
+                closeAdminNewEquipmentModal();
+                
+                const successMsg = document.getElementById('adminSuccessMessage');
+                successMsg.textContent = '✓ Equipo agregado exitosamente';
+                successMsg.style.display = 'block';
+                setTimeout(() => {
+                    successMsg.style.display = 'none';
+                }, 3000);
+            } catch (error) {
+                console.error('❌ Error guardando equipo:', error);
+                alert('Error al guardar el equipo: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '💾 Guardar Equipo';
+            }
+        }
+
+        async function openEditEquipmentModal(equipmentId) {
+            try {
+                const docSnap = await window.db.collection('equipments').doc(equipmentId).get();
+                
+                if (docSnap.exists) {
+                    const equipment = docSnap.data();
+                    document.getElementById('editEquipmentId').value = equipmentId;
+                    document.getElementById('editEquipmentNumber').value = equipment.equipmentNumber || '';
+                    document.getElementById('editEquipmentModel').value = equipment.model || '';
+                    document.getElementById('editEquipmentSerial').value = equipment.serial || '';
+                    document.getElementById('editEquipmentNotes').value = equipment.notes || '';
+                    
+                    document.getElementById('editEquipmentModal').style.display = 'flex';
+                }
+            } catch (error) {
+                console.error('Error cargando equipo:', error);
+                alert('Error al cargar el equipo: ' + error.message);
+            }
+        }
+
+        function closeEditEquipmentModal() {
+            document.getElementById('editEquipmentModal').style.display = 'none';
+            document.getElementById('editEquipmentForm').reset();
+        }
+
+        async function saveEditedEquipment() {
+            const submitBtn = event.target;
+            submitBtn.disabled = true;
+            submitBtn.textContent = '💾 Guardando...';
+
+            const equipmentId = document.getElementById('editEquipmentId').value;
+            const updatedData = {
+                equipmentNumber: document.getElementById('editEquipmentNumber').value,
+                model: document.getElementById('editEquipmentModel').value,
+                serial: document.getElementById('editEquipmentSerial').value,
+                notes: document.getElementById('editEquipmentNotes').value,
+                updatedAt: firebase.firestore.Timestamp.now()
+            };
+
+            try {
+                await window.db.collection('equipments').doc(equipmentId).update(updatedData);
+                
+                console.log('✅ Equipo actualizado');
+
+                // Reload equipment list
+                await loadClientEquipments();
+
+                closeEditEquipmentModal();
+                
+                const successMsg = document.getElementById('adminSuccessMessage');
+                successMsg.textContent = '✓ Equipo actualizado exitosamente';
+                successMsg.style.display = 'block';
+                setTimeout(() => {
+                    successMsg.style.display = 'none';
+                }, 3000);
+            } catch (error) {
+                console.error('❌ Error actualizando equipo:', error);
+                alert('Error al actualizar el equipo: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '💾 Guardar Cambios';
+            }
+        }
+
+        async function deleteEquipment(equipmentId, equipmentModel) {
+            if (!confirm(`¿Estás seguro de eliminar el equipo "${equipmentModel}"?\n\nEsta acción no se puede deshacer.`)) {
+                return;
+            }
+
+            try {
+                await window.db.collection('equipments').doc(equipmentId).delete();
+                
+                console.log('✅ Equipo eliminado');
+
+                // Reload equipment list
+                await loadClientEquipments();
+                
+                const successMsg = document.getElementById('adminSuccessMessage');
+                successMsg.textContent = '✓ Equipo eliminado exitosamente';
+                successMsg.style.display = 'block';
+                setTimeout(() => {
+                    successMsg.style.display = 'none';
+                }, 3000);
+            } catch (error) {
+                console.error('❌ Error eliminando equipo:', error);
+                alert('Error al eliminar el equipo: ' + error.message);
+            }
+        }
+
+
+        function openAddEquipmentForClient() {
+            const clientId = document.getElementById('adminClientSelect').value;
+            if (!clientId) {
+                alert('Por favor selecciona un cliente primero');
+                return;
+            }
+            
+            // Set the client and open modal
+            document.getElementById('adminClientForNewEquipment').value = clientId;
+            document.getElementById('addEquipmentAdminModal').style.display = 'flex';
+        }
+
+        function closeAddEquipmentAdminModal() {
+            document.getElementById('addEquipmentAdminModal').style.display = 'none';
+            document.getElementById('addEquipmentAdminForm').reset();
+        }
+
+        async function saveNewEquipmentFromAdmin() {
+            const submitBtn = document.getElementById('addEquipmentAdminBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '💾 Guardando...';
+
+            const clientId = document.getElementById('adminClientForNewEquipment').value;
+            
+            const newEquipment = {
+                clientId: clientId,
+                equipmentNumber: document.getElementById('addEquipmentNumberAdmin').value,
+                model: document.getElementById('addEquipmentModelAdmin').value,
+                serial: document.getElementById('addEquipmentSerialAdmin').value,
+                notes: document.getElementById('addEquipmentNotesAdmin').value,
+                createdAt: firebase.firestore.Timestamp.now()
+            };
+
+            if (!newEquipment.equipmentNumber || !newEquipment.model || !newEquipment.serial) {
+                alert('⚠️ Por favor completa los campos requeridos');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '💾 Guardar Equipo';
+                return;
+            }
+
+            try {
+                const docRef = await window.db.collection('equipments').add(newEquipment);
+                console.log('✅ Equipo guardado con ID:', docRef.id);
+
+                closeAddEquipmentAdminModal();
+                
+                const successMsg = document.getElementById('adminSuccessMessage');
+                successMsg.textContent = '✓ Equipo agregado exitosamente';
+                successMsg.style.display = 'block';
+                setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
+
+                // Reload equipments list
+                await loadClientEquipments();
+            } catch (error) {
+                console.error('❌ Error guardando equipo:', error);
+                alert('Error al guardar el equipo: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '💾 Guardar Equipo';
+            }
+        }
+
+        async function openEditEquipment(equipmentId) {
+            try {
+                const docSnap = await window.db.collection('equipments').doc(equipmentId).get();
+                
+                if (docSnap.exists) {
+                    const equipment = docSnap.data();
+                    
+                    document.getElementById('editEquipmentId').value = equipmentId;
+                    document.getElementById('editEquipmentNumber').value = equipment.equipmentNumber || '';
+                    document.getElementById('editEquipmentModel').value = equipment.model || '';
+                    document.getElementById('editEquipmentSerial').value = equipment.serial || '';
+                    document.getElementById('editEquipmentNotes').value = equipment.notes || '';
+                    
+                    document.getElementById('editEquipmentModal').style.display = 'flex';
+                }
+            } catch (error) {
+                console.error('Error cargando equipo:', error);
+                alert('Error al cargar el equipo: ' + error.message);
+            }
+        }
+
+        function closeEditEquipmentModal() {
+            document.getElementById('editEquipmentModal').style.display = 'none';
+            document.getElementById('editEquipmentForm').reset();
+        }
+
+        async function saveEditedEquipment() {
+            const equipmentId = document.getElementById('editEquipmentId').value;
+            
+            const updatedData = {
+                equipmentNumber: document.getElementById('editEquipmentNumber').value,
+                model: document.getElementById('editEquipmentModel').value,
+                serial: document.getElementById('editEquipmentSerial').value,
+                notes: document.getElementById('editEquipmentNotes').value
+            };
+
+            if (!updatedData.equipmentNumber || !updatedData.model || !updatedData.serial) {
+                alert('⚠️ Por favor completa los campos requeridos');
+                return;
+            }
+
+            try {
+                await window.db.collection('equipments').doc(equipmentId).update(updatedData);
+                
+                closeEditEquipmentModal();
+                
+                const successMsg = document.getElementById('adminSuccessMessage');
+                successMsg.textContent = '✓ Equipo actualizado exitosamente';
+                successMsg.style.display = 'block';
+                setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
+
+                // Reload equipments list
+                await loadClientEquipments();
+            } catch (error) {
+                console.error('Error actualizando equipo:', error);
+                alert('Error al actualizar el equipo: ' + error.message);
+            }
+        }
+
+        async function deleteEquipment(equipmentId, equipmentModel) {
+            if (!confirm(`¿Estás seguro de eliminar el equipo "${equipmentModel}"?\n\nEsta acción no se puede deshacer.`)) {
+                return;
+            }
+
+            try {
+                await window.db.collection('equipments').doc(equipmentId).delete();
+                
+                const successMsg = document.getElementById('adminSuccessMessage');
+                successMsg.textContent = '✓ Equipo eliminado exitosamente';
+                successMsg.style.display = 'block';
+                setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
+
+                // Reload equipments list
+                await loadClientEquipments();
+            } catch (error) {
+                console.error('Error eliminando equipo:', error);
+                alert('Error al eliminar el equipo: ' + error.message);
+            }
+        }
+
+        // Load clients when page loads
+        document.addEventListener('DOMContentLoaded', async function() {
+            const clientSelect = document.getElementById('clientSelect');
+            clientSelect.innerHTML = '<option value="">Cargando clientes desde Airtable...</option>';
+            
+            // Load clients from Airtable
+            const success = await loadClientsFromAirtable();
+            
+            if (success && Object.keys(clientsData).length > 0) {
+                clientSelect.innerHTML = '<option value="">Selecciona un cliente...</option>';
+                
+                Object.values(clientsData).forEach(client => {
+                    const option = document.createElement('option');
+                    option.value = client.id;
+                    option.textContent = client.name;
+                    clientSelect.appendChild(option);
+                });
+                
+                console.log('✅ Clientes cargados en el selector:', Object.keys(clientsData).length);
+            } else {
+                clientSelect.innerHTML = '<option value="">Error al cargar clientes</option>';
+            }
+
+            // Add Enter key support for admin password
+            const passwordInput = document.getElementById('adminPassword');
+            if (passwordInput) {
+                passwordInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        checkAdminPassword();
+                    }
+                });
+            }
+        });
+
+        async function loadClientData() {
+            console.log('📞 loadClientData llamada');
+            
+            const clientId = document.getElementById('clientSelect').value;
+            const clientInfoDiv = document.getElementById('clientInfo');
+            const equipmentSelectGroup = document.getElementById('equipmentSelectGroup');
+            const equipmentSelect = document.getElementById('equipmentSelect');
+            const equipmentInfoDiv = document.getElementById('equipmentInfo');
+
+            console.log('Cliente seleccionado:', clientId);
+
+            if (!clientId) {
+                clientInfoDiv.innerHTML = '';
+                equipmentSelectGroup.style.display = 'none';
+                equipmentInfoDiv.innerHTML = '';
+                document.getElementById('equipmentWorkSection').style.display = 'none';
+                document.getElementById('addedEquipmentsList').style.display = 'none';
+                document.getElementById('submitBtn').style.display = 'none';
+                window.reportEquipments = [];
+                document.getElementById('addedEquipmentsContainer').innerHTML = '';
+                return;
+            }
+
+            // Reset report equipments when changing client
+            window.reportEquipments = [];
+            document.getElementById('addedEquipmentsContainer').innerHTML = '';
+            document.getElementById('addedEquipmentsList').style.display = 'none';
+            document.getElementById('equipmentWorkSection').style.display = 'none';
+            document.getElementById('submitBtn').style.display = 'none';
+
+            const client = clientsData[clientId];
+            console.log('Datos del cliente:', client);
+            
+            // Display client info
+            clientInfoDiv.innerHTML = `
+                <div class="info-card">
+                    <h3>📊 Información del Cliente</h3>
+                    <p><strong>Empresa:</strong> ${client.razonSocial}</p>
+                    <p><strong>Documento/NIT:</strong> ${client.documento}</p>
+                    <p><strong>Ciudad:</strong> ${client.ciudad}</p>
+                    <p><strong>Dirección:</strong> ${client.direccion}</p>
+                </div>
+            `;
+
+            console.log('📦 Mostrando sección de equipos...');
+            // Load equipments from Firebase
+            equipmentSelectGroup.style.display = 'block';
+            equipmentSelect.innerHTML = '<option value="">Cargando equipos...</option>';
+            
+            try {
+                console.log('⏳ Esperando Firebase...');
+                // Simple wait for Firebase
+                let attempts = 0;
+                while (!window.firebaseReady && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+                
+                if (!window.firebaseReady || !window.db) {
+                    throw new Error('Firebase no se inicializó correctamente. Por favor recarga la página.');
+                }
+                
+                console.log('✅ Firebase listo');
+
+                console.log('🔍 Buscando equipos para cliente:', clientId);
+
+                const querySnapshot = await window.db.collection('equipments').where('clientId', '==', clientId).get();
+                
+                console.log('📊 Equipos encontrados:', querySnapshot.size);
+                
+                equipmentSelect.innerHTML = '<option value="">Selecciona un equipo...</option>';
+                
+                if (querySnapshot.empty) {
+                    console.log('⚠️ No hay equipos - mostrando mensaje');
+                    equipmentSelect.innerHTML += '<option value="" disabled>⚠️ No hay equipos registrados - Crea uno nuevo abajo</option>';
+                    equipmentSelect.removeAttribute('required');
+                } else {
+                    console.log('✅ Hay equipos - cargándolos y ordenándolos');
+                    equipmentSelect.setAttribute('required', 'required');
+                    
+                    // Convert to array and sort by equipment number
+                    const equipments = [];
+                    querySnapshot.forEach((doc) => {
+                        const data = doc.data();
+                        equipments.push({
+                            id: doc.id,
+                            ...data,
+                            sortKey: (() => {
+                                const num = String(data.equipmentNumber || '999').trim();
+                                const match = num.match(/\d+/);
+                                return match ? parseInt(match[0]) : 999999;
+                            })()
+                        });
+                    });
+                    
+                    console.log('📋 Equipos EMPLEADO ANTES de ordenar:');
+                    equipments.forEach(e => console.log(`  ${e.equipmentNumber} (sortKey: ${e.sortKey}) - ${e.model}`));
+                    
+                    // Sort by equipment number
+                    equipments.sort((a, b) => a.sortKey - b.sortKey);
+                    
+                    console.log('📋 Equipos EMPLEADO DESPUÉS de ordenar:');
+                    equipments.forEach(e => console.log(`  ${e.equipmentNumber} (sortKey: ${e.sortKey}) - ${e.model}`));
+                    
+                    // Add sorted equipments to dropdown
+                    equipments.forEach((eq) => {
+                        const option = document.createElement('option');
+                        option.value = eq.id;
+                        option.textContent = `Equipo #${eq.equipmentNumber || 'S/N'} - ${eq.model} (${eq.serial})`;
+                        equipmentSelect.appendChild(option);
+                        console.log('➕ Equipo agregado al dropdown:', eq.equipmentNumber, '-', eq.model);
+                    });
+                }
+
+                equipmentInfoDiv.innerHTML = '';
+                
+                // Double check the section is visible
+                console.log('🔍 Verificando visibilidad de equipmentSelectGroup...');
+                console.log('Display actual:', equipmentSelectGroup.style.display);
+                if (equipmentSelectGroup.style.display !== 'block') {
+                    console.warn('⚠️ Forzando display block');
+                    equipmentSelectGroup.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('❌ Error cargando equipos:', error);
+                equipmentSelect.innerHTML = '<option value="">Error al cargar equipos</option>';
+                showError('Error al cargar los equipos: ' + error.message);
+                // Make sure section is visible even on error
+                equipmentSelectGroup.style.display = 'block';
+            }
+        }
+
+        async function loadEquipmentData() {
+            const equipmentId = document.getElementById('equipmentSelect').value;
+            const equipmentInfoDiv = document.getElementById('equipmentInfo');
+
+            if (!equipmentId) {
+                equipmentInfoDiv.innerHTML = '';
+                return;
+            }
+
+            try {
+                // Simple wait for Firebase
+                let attempts = 0;
+                while (!window.firebaseReady && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (!window.firebaseReady || !window.db) {
+                    throw new Error('Firebase no se inicializó correctamente');
+                }
+
+                const docSnap = await window.db.collection('equipments').doc(equipmentId).get();
+
+                if (docSnap.exists) {
+                    const equipment = docSnap.data();
+                    equipmentInfoDiv.innerHTML = `
+                        <div class="info-card">
+                            <h3>⚙️ Información del Equipo</h3>
+                            <p><strong>Equipo #:</strong> ${equipment.equipmentNumber || 'No especificado'}</p>
+                            <p><strong>Modelo:</strong> ${equipment.model}</p>
+                            <p><strong>Serie:</strong> ${equipment.serial}</p>
+                            ${equipment.notes ? `<p><strong>Notas:</strong> ${equipment.notes}</p>` : ''}
+                        </div>
+                    `;
+                    
+                    // Show equipment work section
+                    document.getElementById('equipmentWorkSection').style.display = 'block';
+                    // Store current equipment data
+                    window.currentEquipmentData = {
+                        id: equipmentId,
+                        ...equipment
+                    };
+                } else {
+                    document.getElementById('equipmentWorkSection').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error cargando información del equipo:', error);
+            }
+        }
+
+        // Equipment form submit handler - Add as soon as possible
+        console.log('🎯 Agregando event listener al formulario de equipos...');
+        
+        // Use a small delay to ensure DOM is ready
+        setTimeout(function() {
+            const form = document.getElementById('newEquipmentForm');
+            console.log('📋 Formulario encontrado:', form ? 'SÍ' : 'NO');
+            
+            if (form) {
+                form.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    console.log('📝 Formulario de equipo enviado');
+                    
+                    const submitBtn = document.getElementById('newEquipmentSubmitBtn');
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = '💾 Guardando...';
+
+                    const clientId = document.getElementById('clientSelect').value;
+                    
+                    const newEquipment = {
+                        clientId: clientId,
+                        model: document.getElementById('newEquipmentModel').value,
+                        serial: document.getElementById('newEquipmentSerial').value,
+                        location: document.getElementById('newEquipmentLocation').value,
+                        notes: document.getElementById('newEquipmentNotes').value
+                    };
+
+                    console.log('📦 Datos del equipo:', newEquipment);
+
+                    try {
+                        // Wait for Firebase
+                        await window.waitForFirebase;
+                        console.log('🔥 Firebase listo para guardar');
+                        
+                        const { collection, addDoc, Timestamp } = window.firebaseModules;
+                        newEquipment.createdAt = Timestamp.now();
+                        
+                        const docRef = await addDoc(collection(window.db, 'equipments'), newEquipment);
+                        
+                        console.log('✅ Equipo guardado con ID:', docRef.id);
+
+                        // Reload equipment select
+                        await loadClientData();
+
+                        // Select the new equipment
+                        document.getElementById('equipmentSelect').value = docRef.id;
+                        await loadEquipmentData();
+
+                        closeNewEquipmentModal();
+                        showSuccess('✓ Equipo registrado exitosamente en Firebase');
+                    } catch (error) {
+                        console.error('❌ Error guardando equipo:', error);
+                        showError('Error al guardar el equipo: ' + error.message);
+                    } finally {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = '💾 Guardar Equipo';
+                    }
+                });
+                console.log('✅ Event listener agregado correctamente');
+            } else {
+                console.error('❌ No se encontró el formulario de equipos');
+            }
+        }, 100);
+    </script>
+
+    <!-- Firebase Module Scripts -->
+    <script type="module">
+        // Report form submit handler
+        document.getElementById('reportForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            // Check if at least one equipment was added
+            if (!window.reportEquipments || window.reportEquipments.length === 0) {
+                showError('⚠️ Por favor agrega al menos un equipo con su trabajo realizado al reporte antes de enviar');
+                
+                // Scroll to equipment section if not visible
+                if (document.getElementById('equipmentSelectGroup').style.display === 'none') {
+                    document.getElementById('equipmentSelectGroup').style.display = 'block';
+                    document.getElementById('equipmentSelectGroup').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                return;
+            }
+
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '📤 Enviando...';
+
+            const clientId = document.getElementById('clientSelect').value;
+            const client = clientsData[clientId];
+
+            // Calculate total hours
+            const horaEntrada = document.getElementById('horaEntrada').value;
+            const horaSalida = document.getElementById('horaSalida').value;
+            let totalHoras = 0;
+            
+            if (horaEntrada && horaSalida) {
+                const [entradaHora, entradaMin] = horaEntrada.split(':').map(Number);
+                const [salidaHora, salidaMin] = horaSalida.split(':').map(Number);
+                let totalMinutes = (salidaHora * 60 + salidaMin) - (entradaHora * 60 + entradaMin);
+                if (totalMinutes < 0) totalMinutes += 24 * 60;
+                totalHoras = totalMinutes / 60;
+            }
+
+            const report = {
+                technician: document.getElementById('technicianName').value,
+                clientId: clientId,
+                clientName: client.name || client.razonSocial || 'Sin nombre',
+                clientEmail: client.email || '',
+                clientContact: client.telefono || 'No especificado',
+                clientDocument: client.documento || '',
+                clientCity: client.ciudad || '',
+                clientAddress: client.direccion || '',
+                equipments: window.reportEquipments,
+                serviceType: document.getElementById('serviceType').value,
+                horaEntrada: horaEntrada,
+                horaSalida: horaSalida,
+                tiempoServicio: totalHoras,
+                observaciones: document.getElementById('observaciones').value,
+                receptorNombre: document.getElementById('receptorNombre').value,
+                receptorCargo: document.getElementById('receptorCargo').value,
+                receptorFirma: hasSignature ? getSignatureData() : null,
+                status: 'pending',
+                createdAt: firebase.firestore.Timestamp.now()
+            };
+
+            try {
+                const docRef = await window.db.collection('reports').add(report);
+                
+                console.log('✅ Reporte guardado con ID:', docRef.id);
+
+                // Show success message
+                showSuccess('✓ Reporte enviado exitosamente para aprobación (ID: ' + docRef.id + ')');
+
+                // Reset form and equipments
+                document.getElementById('reportForm').reset();
+                document.getElementById('clientInfo').innerHTML = '';
+                document.getElementById('equipmentInfo').innerHTML = '';
+                document.getElementById('equipmentSelectGroup').style.display = 'none';
+                document.getElementById('equipmentWorkSection').style.display = 'none';
+                document.getElementById('addedEquipmentsList').style.display = 'none';
+                document.getElementById('addedEquipmentsContainer').innerHTML = '';
+                document.getElementById('submitBtn').style.display = 'none';
+                document.getElementById('horasTrabajadas').value = '';
+                clearSignature();
+                window.reportEquipments = [];
+            } catch (error) {
+                console.error('Error guardando reporte:', error);
+                showError('Error al enviar el reporte: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '📤 Enviar Reporte Completo para Aprobación';
+            }
+        });
+
+        async function loadPendingReports() {
+            const container = document.getElementById('pendingReports');
+            
+            try {
+                const querySnapshot = await window.db.collection('reports')
+                    .where('status', '==', 'pending')
+                    .orderBy('createdAt', 'desc')
+                    .get();
+                
+                if (querySnapshot.empty) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #999;">
+                            <p style="font-size: 48px;">📭</p>
+                            <p>No hay reportes pendientes de aprobación</p>
+                            <p style="font-size: 14px; margin-top: 10px;">Los reportes enviados por los técnicos aparecerán aquí</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = '';
+                querySnapshot.forEach((doc) => {
+                    const report = doc.data();
+                    const reportDate = report.createdAt.toDate();
+                    
+                    // Build equipments summary
+                    let equipmentsSummary = '';
+                    if (report.equipments && report.equipments.length > 0) {
+                        equipmentsSummary = report.equipments.map(eq => 
+                            `Equipo #${eq.equipment.equipmentNumber} - ${eq.equipment.model}`
+                        ).join(', ');
+                    } else {
+                        equipmentsSummary = report.equipmentModel || 'No especificado';
+                    }
+                    
+                    const card = document.createElement('div');
+                    card.className = 'report-card';
+                    card.innerHTML = `
+                        <div class="report-header">
+                            <div>
+                                <div class="report-title">Reporte - ${report.clientName}</div>
+                                <div class="report-date">${reportDate.toLocaleDateString('es-CO')} ${reportDate.toLocaleTimeString('es-CO')}</div>
+                            </div>
+                        </div>
+                        <div class="report-details">
+                            <div class="detail-item">
+                                <div class="detail-label">Técnico:</div>
+                                <div class="detail-value">${report.technician}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Equipos:</div>
+                                <div class="detail-value">${equipmentsSummary}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Tipo de Servicio:</div>
+                                <div class="detail-value">${report.serviceType}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Horario:</div>
+                                <div class="detail-value">Entrada: ${report.horaEntrada || 'N/A'} | Salida: ${report.horaSalida || 'N/A'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Tiempo:</div>
+                                <div class="detail-value">${report.tiempoServicio ? report.tiempoServicio.toFixed(2) + ' horas' : 'N/A'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Recibió:</div>
+                                <div class="detail-value">${report.receptorNombre || 'N/A'} - ${report.receptorCargo || 'N/A'}</div>
+                            </div>
+                        </div>
+                        ${report.equipments && report.equipments.length > 0 ? `
+                            <div style="margin-top: 15px; padding: 10px; background: #f8f9ff; border-radius: 6px;">
+                                <strong style="color: #667eea;">Detalle por Equipo:</strong>
+                                ${report.equipments.map((eq, index) => `
+                                    <div style="margin-top: 10px; padding-left: 10px; border-left: 3px solid #667eea;">
+                                        <p style="font-weight: 600; margin-bottom: 5px;">
+                                            Equipo #${eq.equipment.equipmentNumber} - ${eq.equipment.model}
+                                        </p>
+                                        <p style="font-size: 13px; color: #666;">
+                                            <strong>Trabajos:</strong> ${eq.trabajos.join(', ')}
+                                        </p>
+                                        ${eq.materiales && eq.materiales.length > 0 ? `
+                                            <p style="font-size: 13px; color: #666;">
+                                                <strong>Materiales:</strong> ${eq.materiales.length} item(s)
+                                            </p>
+                                        ` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                        ${report.trabajos && report.trabajos.length > 0 ? `
+                            <div class="detail-item" style="margin-top: 10px;">
+                                <div class="detail-label">Trabajos Realizados:</div>
+                                <div class="detail-value">${report.trabajos.join(', ')}</div>
+                            </div>
+                        ` : ''}
+                        ${report.materiales ? `
+                            <div class="detail-item" style="margin-top: 10px;">
+                                <div class="detail-label">Materiales:</div>
+                                <div class="detail-value">${report.materiales}</div>
+                            </div>
+                        ` : ''}
+                        ${report.observaciones ? `
+                            <div class="detail-item" style="margin-top: 10px;">
+                                <div class="detail-label">Observaciones:</div>
+                                <div class="detail-value">${report.observaciones}</div>
+                            </div>
+                        ` : ''}
+                        <div class="action-buttons">
+                            <button class="approve-btn" onclick="openEditReportModal('${doc.id}')" style="background: #0ea5e9;">
+                                ✏️ Editar
+                            </button>
+                            <button class="approve-btn" onclick="approveReport('${doc.id}', '${report.clientEmail}', '${report.clientName}')">
+                                ✓ Aprobar y Enviar
+                            </button>
+                            <button class="reject-btn" onclick="rejectReport('${doc.id}')">
+                                ✗ Rechazar
+                            </button>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error cargando reportes:', error);
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #ef4444;">
+                        <p style="font-size: 48px;">⚠️</p>
+                        <p>Error al cargar los reportes</p>
+                        <p style="font-size: 14px; margin-top: 10px;">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // PDF Generation Function - IMPROVED
+        async function generateReportPDF(reportId) {
+            try {
+                const docSnap = await window.db.collection('reports').doc(reportId).get();
+                if (!docSnap.exists) throw new Error('Reporte no encontrado');
+                
+                const report = docSnap.data();
+                const reportDate = report.createdAt.toDate();
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('landscape', 'mm', 'a4');
+                
+                // Try to add logo (if fails, continue without it)
+                try {
+                    // Placeholder for logo - you'll need to upload logo to a public URL
+                    // For now, we'll add a text placeholder
+                    doc.setFontSize(14);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(220, 80, 40);
+                    doc.text('TECNOCOL', 10, 15);
+                    doc.setTextColor(0, 0, 0);
+                } catch(e) {
+                    console.warn('Logo not available');
+                }
+                
+                // Title
+                doc.setFontSize(16);
+                doc.setFont('helvetica', 'bold');
+                doc.text('REPORTE DE SERVICIO DE MANTENIMIENTO', 148, 18, { align: 'center' });
+                
+                // Info section with better layout
+                let yPos = 35;
+                doc.setFontSize(9);
+                
+                // Left: Client info
+                doc.setFont('helvetica', 'bold');
+                doc.text('INFORMACIÓN DEL CLIENTE', 10, yPos);
+                yPos += 5;
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Cliente: ${report.clientName}`, 10, yPos);
+                doc.text(`NIT: ${report.clientDocument}`, 10, yPos + 5);
+                doc.text(`Ciudad: ${report.clientCity}`, 10, yPos + 10);
+                doc.text(`Dirección: ${report.clientAddress}`, 10, yPos + 15);
+                
+                // Right: Service info (same height)
+                let rightY = yPos - 5;
+                doc.setFont('helvetica', 'bold');
+                doc.text('INFORMACIÓN DEL SERVICIO', 180, rightY);
+                rightY += 5;
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Fecha: ${reportDate.toLocaleDateString('es-CO')}`, 180, rightY);
+                doc.text(`Técnico: ${report.technician}`, 180, rightY + 5);
+                doc.text(`Tipo: ${report.serviceType}`, 180, rightY + 10);
+                doc.text(`Hora entrada: ${report.horaEntrada || 'N/A'}`, 180, rightY + 15);
+                doc.text(`Hora salida: ${report.horaSalida || 'N/A'}`, 180, rightY + 20);
+                doc.text(`Horas trabajadas: ${report.tiempoServicio ? report.tiempoServicio.toFixed(2) : 'N/A'}`, 180, rightY + 25);
+                
+                yPos += 35;
+                
+                // Separator
+                doc.setDrawColor(100, 120, 200);
+                doc.setLineWidth(0.5);
+                doc.line(10, yPos, 287, yPos);
+                yPos += 8;
+                
+                // Equipment details with better spacing
+                if (report.equipments && report.equipments.length > 0) {
+                    report.equipments.forEach((eqWork, index) => {
+                        const eq = eqWork.equipment;
+                        
+                        // Get equipment number (use index+1 if not available)
+                        const eqNum = eq.equipmentNumber || eq.number || (index + 1);
+                        
+                        // Equipment header
+                        doc.setFillColor(220, 230, 245);
+                        doc.rect(10, yPos - 2, 277, 7, 'F');
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFontSize(11);
+                        doc.setTextColor(20, 50, 150);
+                        doc.text(`EQUIPO #${eqNum} - ${eq.model} (Serie: ${eq.serial})`, 12, yPos + 3);
+                        doc.setTextColor(0, 0, 0);
+                        
+                        yPos += 12; // MORE SPACE
+                        doc.setFont('helvetica', 'normal');
+                        doc.setFontSize(9);
+                        
+                        // Trabajos
+                        doc.setFont('helvetica', 'bold');
+                        doc.text('Trabajos Realizados:', 12, yPos);
+                        doc.setFont('helvetica', 'normal');
+                        const trabajosText = eqWork.trabajos.join(', ');
+                        const trabajosLines = doc.splitTextToSize(trabajosText, 255);
+                        doc.text(trabajosLines, 55, yPos);
+                        yPos += (trabajosLines.length * 4) + 5; // MORE SPACE
+                        
+                        // Parámetros
+                        if (eqWork.parametros && (eqWork.parametros.horasFiltro || eqWork.parametros.presionBomba || eqWork.parametros.viscosidad)) {
+                            doc.setFont('helvetica', 'bold');
+                            doc.text('Parámetros:', 12, yPos);
+                            doc.setFont('helvetica', 'normal');
+                            let params = [];
+                            if (eqWork.parametros.horasFiltro) params.push(`Horas filtro: ${eqWork.parametros.horasFiltro}`);
+                            if (eqWork.parametros.presionBomba) params.push(`Presión: ${eqWork.parametros.presionBomba}`);
+                            if (eqWork.parametros.viscosidad) params.push(`Viscosidad: ${eqWork.parametros.viscosidad}`);
+                            doc.text(params.join(' | '), 55, yPos);
+                            yPos += 6;
+                        }
+                        
+                        // Materials table
+                        if (eqWork.materiales && eqWork.materiales.length > 0) {
+                            const materialsData = eqWork.materiales.map(m => [m.cantidad || '', m.descripcion || '', m.referencia || '']);
+                            doc.autoTable({
+                                startY: yPos,
+                                head: [['Cant.', 'Descripción', 'Referencia']],
+                                body: materialsData,
+                                theme: 'grid',
+                                headStyles: { fillColor: [100, 120, 200], fontSize: 8, fontStyle: 'bold' },
+                                bodyStyles: { fontSize: 8 },
+                                columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 180 }, 2: { cellWidth: 67 } },
+                                margin: { left: 12, right: 12 }
+                            });
+                            yPos = doc.lastAutoTable.finalY + 5;
+                        }
+                        
+                        // Equipment observations
+                        if (eqWork.observations) {
+                            doc.setFont('helvetica', 'bold');
+                            doc.text('Observaciones:', 12, yPos);
+                            doc.setFont('helvetica', 'normal');
+                            const obsLines = doc.splitTextToSize(eqWork.observations, 255);
+                            doc.text(obsLines, 55, yPos);
+                            yPos += (obsLines.length * 4) + 5;
+                        }
+                        
+                        yPos += 6; // Space before next equipment
+                        
+                        // New page if needed
+                        if (yPos > 175 && index < report.equipments.length - 1) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+                    });
+                }
+                
+                // Check space for final section
+                if (yPos > 145) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                // Separator
+                doc.setDrawColor(100, 120, 200);
+                doc.line(10, yPos, 287, yPos);
+                yPos += 6;
+                
+                // General observations
+                if (report.observaciones) {
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(10);
+                    doc.text('OBSERVACIONES GENERALES:', 10, yPos);
+                    yPos += 5;
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(9);
+                    const obsGenLines = doc.splitTextToSize(report.observaciones, 270);
+                    doc.text(obsGenLines, 10, yPos);
+                    yPos += (obsGenLines.length * 4) + 8;
+                }
+                
+                // Signature section with boxes
+                yPos += 5;
+                
+                // Received by - Left box
+                doc.setDrawColor(150, 150, 150);
+                doc.setLineWidth(0.3);
+                doc.rect(10, yPos, 130, 35);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.text('RECIBIDO POR:', 12, yPos + 5);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.text(`Nombre: ${report.receptorNombre || 'N/A'}`, 12, yPos + 11);
+                doc.text(`Cargo: ${report.receptorCargo || 'N/A'}`, 12, yPos + 16);
+                
+                // Add signature if exists
+                if (report.receptorFirma) {
+                    try {
+                        doc.addImage(report.receptorFirma, 'PNG', 12, yPos + 19, 40, 12);
+                    } catch(e) {
+                        console.warn('Firma no pudo cargarse');
+                    }
+                }
+                doc.line(12, yPos + 32, 62, yPos + 32);
+                doc.setFontSize(7);
+                doc.text('Firma', 12, yPos + 34);
+                
+                // Tecnocol responsible - Right box (NO SIGNATURE LINE)
+                doc.rect(150, yPos, 137, 35);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.text('RESPONSABLE TECNOCOL:', 152, yPos + 5);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.text(report.technician, 152, yPos + 11);
+                
+                // Generate filename
+                const fileName = `Reporte_${report.clientName.replace(/\s/g, '_')}_${reportDate.getDate()}-${reportDate.getMonth()+1}-${reportDate.getFullYear()}.pdf`;
+                
+                // Save PDF
+                doc.save(fileName);
+                
+                return fileName;
+                
+            } catch (error) {
+                console.error('Error generando PDF:', error);
+                throw error;
+            }
+        }
+
+        window.approveReport = async function(reportId, clientEmail, clientName) {
+            if (!confirm('¿Aprobar y enviar este reporte al cliente?')) return;
+
+            try {
+                console.log('📄 Generando PDF...');
+                const pdfFileName = await generateReportPDF(reportId);
+                console.log('✅ PDF generado:', pdfFileName);
+                
+                // Update report status
+                await window.db.collection('reports').doc(reportId).update({
+                    status: 'approved',
+                    approvedAt: firebase.firestore.Timestamp.now(),
+                    pdfGenerated: true,
+                    pdfFileName: pdfFileName
+                });
+
+                console.log('✅ Reporte aprobado:', reportId);
+
+                const message = `✓ Reporte aprobado y PDF generado\n\nArchivo: ${pdfFileName}\nCliente: ${clientName}`;
+                
+                const successMsg = document.getElementById('adminSuccessMessage');
+                successMsg.textContent = message;
+                successMsg.style.display = 'block';
+                setTimeout(() => {
+                    successMsg.style.display = 'none';
+                }, 5000);
+                
+                // Reload list
+                await loadPendingReports();
+            } catch (error) {
+                console.error('Error aprobando reporte:', error);
+                alert('Error al aprobar el reporte: ' + error.message);
+            }
+        };
+
+        window.openEditReportModal = async function(reportId) {
+            try {
+                const docSnap = await window.db.collection('reports').doc(reportId).get();
+                
+                if (!docSnap.exists) {
+                    alert('Reporte no encontrado');
+                    return;
+                }
+
+                const report = docSnap.data();
+                const content = document.getElementById('editReportContent');
+                
+                let equipmentsHTML = '';
+                if (report.equipments && report.equipments.length > 0) {
+                    equipmentsHTML = `
+                        <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                            <h4 style="color: #0369a1; margin-bottom: 15px;">Equipos y Trabajos Realizados:</h4>
+                            ${report.equipments.map((eq, eqIndex) => `
+                                <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #0ea5e9;" class="equipment-edit-section">
+                                    <h5 style="color: #0369a1; margin-bottom: 15px;">
+                                        Equipo #${eq.equipment.equipmentNumber} - ${eq.equipment.model} (${eq.equipment.serial})
+                                    </h5>
+                                    
+                                    <div class="form-group">
+                                        <label style="font-size: 13px; font-weight: 600;">Trabajos Realizados</label>
+                                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 8px;">
+                                            <label style="display: flex; align-items: center; font-size: 13px; font-weight: normal;">
+                                                <input type="checkbox" class="eq-${eqIndex}-trabajo" value="Limpieza general" ${eq.trabajos.includes('Limpieza general') ? 'checked' : ''} style="margin-right: 8px;">
+                                                Limpieza general
+                                            </label>
+                                            <label style="display: flex; align-items: center; font-size: 13px; font-weight: normal;">
+                                                <input type="checkbox" class="eq-${eqIndex}-trabajo" value="Limpieza cabezal" ${eq.trabajos.includes('Limpieza cabezal') ? 'checked' : ''} style="margin-right: 8px;">
+                                                Limpieza cabezal
+                                            </label>
+                                            <label style="display: flex; align-items: center; font-size: 13px; font-weight: normal;">
+                                                <input type="checkbox" class="eq-${eqIndex}-trabajo" value="Limpieza filtro de aire" ${eq.trabajos.includes('Limpieza filtro de aire') ? 'checked' : ''} style="margin-right: 8px;">
+                                                Limpieza filtro de aire
+                                            </label>
+                                            <label style="display: flex; align-items: center; font-size: 13px; font-weight: normal;">
+                                                <input type="checkbox" class="eq-${eqIndex}-trabajo" value="Llenado de insumos" ${eq.trabajos.includes('Llenado de insumos') ? 'checked' : ''} style="margin-right: 8px;">
+                                                Llenado de insumos
+                                            </label>
+                                            <label style="display: flex; align-items: center; font-size: 13px; font-weight: normal;">
+                                                <input type="checkbox" class="eq-${eqIndex}-trabajo" value="Verificación de su funcionamiento" ${eq.trabajos.includes('Verificación de su funcionamiento') ? 'checked' : ''} style="margin-right: 8px;">
+                                                Verificación de su funcionamiento
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label style="font-size: 13px; font-weight: 600;">Parámetros</label>
+                                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 8px;">
+                                            <div>
+                                                <label style="font-size: 12px; color: #666; font-weight: normal;">Horas de uso de filtro</label>
+                                                <input type="text" class="eq-${eqIndex}-param-horas" value="${eq.parametros?.horasFiltro || ''}" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px;">
+                                            </div>
+                                            <div>
+                                                <label style="font-size: 12px; color: #666; font-weight: normal;">Presión de bomba</label>
+                                                <input type="text" class="eq-${eqIndex}-param-presion" value="${eq.parametros?.presionBomba || ''}" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px;">
+                                            </div>
+                                            <div>
+                                                <label style="font-size: 12px; color: #666; font-weight: normal;">Viscosidad</label>
+                                                <input type="text" class="eq-${eqIndex}-param-viscosidad" value="${eq.parametros?.viscosidad || ''}" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px;">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label style="font-size: 13px; font-weight: 600;">Materiales Utilizados</label>
+                                        <div style="overflow-x: auto; margin-top: 8px;">
+                                            <table style="width: 100%; border-collapse: collapse; border: 2px solid #e0e0e0;">
+                                                <thead>
+                                                    <tr style="background: #f8f9ff;">
+                                                        <th style="border: 1px solid #e0e0e0; padding: 8px; text-align: left; font-size: 12px;">Cantidad</th>
+                                                        <th style="border: 1px solid #e0e0e0; padding: 8px; text-align: left; font-size: 12px;">Descripción</th>
+                                                        <th style="border: 1px solid #e0e0e0; padding: 8px; text-align: left; font-size: 12px;">Referencia</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="eq-${eqIndex}-materials">
+                                                    ${eq.materiales && eq.materiales.length > 0 ? eq.materiales.map((mat, matIndex) => `
+                                                        <tr>
+                                                            <td style="border: 1px solid #e0e0e0; padding: 4px;">
+                                                                <input type="text" value="${mat.cantidad || ''}" style="width: 100%; border: none; padding: 4px; font-size: 13px;">
+                                                            </td>
+                                                            <td style="border: 1px solid #e0e0e0; padding: 4px;">
+                                                                <input type="text" value="${mat.descripcion || ''}" style="width: 100%; border: none; padding: 4px; font-size: 13px;">
+                                                            </td>
+                                                            <td style="border: 1px solid #e0e0e0; padding: 4px;">
+                                                                <input type="text" value="${mat.referencia || ''}" style="width: 100%; border: none; padding: 4px; font-size: 13px;">
+                                                            </td>
+                                                        </tr>
+                                                    `).join('') : `
+                                                        <tr>
+                                                            <td style="border: 1px solid #e0e0e0; padding: 4px;">
+                                                                <input type="text" style="width: 100%; border: none; padding: 4px; font-size: 13px;">
+                                                            </td>
+                                                            <td style="border: 1px solid #e0e0e0; padding: 4px;">
+                                                                <input type="text" style="width: 100%; border: none; padding: 4px; font-size: 13px;">
+                                                            </td>
+                                                            <td style="border: 1px solid #e0e0e0; padding: 4px;">
+                                                                <input type="text" style="width: 100%; border: none; padding: 4px; font-size: 13px;">
+                                                            </td>
+                                                        </tr>
+                                                    `}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label style="font-size: 13px; font-weight: 600;">Observaciones del Equipo</label>
+                                        <textarea class="eq-${eqIndex}-observations" style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px; font-family: inherit;">${eq.observations || ''}</textarea>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+                
+                content.innerHTML = `
+                    <form id="editReportForm">
+                        <input type="hidden" id="editReportId" value="${reportId}">
+                        
+                        <div class="form-group">
+                            <label>Técnico *</label>
+                            <input type="text" id="editTechnician" value="${report.technician}" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Tipo de Servicio *</label>
+                            <select id="editServiceType" required>
+                                <option value="preventivo" ${report.serviceType === 'preventivo' ? 'selected' : ''}>Mantenimiento Preventivo</option>
+                                <option value="correctivo" ${report.serviceType === 'correctivo' ? 'selected' : ''}>Mantenimiento Correctivo</option>
+                                <option value="reparacion" ${report.serviceType === 'reparacion' ? 'selected' : ''}>Reparación</option>
+                                <option value="instalacion" ${report.serviceType === 'instalacion' ? 'selected' : ''}>Instalación</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Hora de Entrada *</label>
+                            <input type="time" id="editHoraEntrada" value="${report.horaEntrada || ''}" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Hora de Salida *</label>
+                            <input type="time" id="editHoraSalida" value="${report.horaSalida || ''}" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Nombre de quien Recibe *</label>
+                            <input type="text" id="editReceptorNombre" value="${report.receptorNombre || ''}" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Cargo de quien Recibe *</label>
+                            <input type="text" id="editReceptorCargo" value="${report.receptorCargo || ''}" required>
+                        </div>
+
+                        ${equipmentsHTML}
+
+                        <div class="form-group">
+                            <label>Observaciones Generales</label>
+                            <textarea id="editObservaciones">${report.observaciones || ''}</textarea>
+                        </div>
+
+                        ${report.receptorFirma ? `
+                            <div class="form-group">
+                                <label>Firma Actual</label>
+                                <img src="${report.receptorFirma}" style="border: 2px solid #e0e0e0; border-radius: 8px; max-width: 300px; background: white;">
+                                <p style="font-size: 12px; color: #666; margin-top: 5px;">ℹ️ No se puede editar la firma una vez enviado el reporte</p>
+                            </div>
+                        ` : ''}
+
+                        <button type="button" class="submit-btn" onclick="saveEditedReport(${report.equipments ? report.equipments.length : 0})">💾 Guardar Cambios</button>
+                    </form>
+                `;
+                
+                document.getElementById('editReportModal').style.display = 'flex';
+            } catch (error) {
+                console.error('Error cargando reporte:', error);
+                alert('Error al cargar el reporte: ' + error.message);
+            }
+        };
+
+        window.closeEditReportModal = function() {
+            document.getElementById('editReportModal').style.display = 'none';
+        };
+
+        window.saveEditedReport = async function(equipmentCount) {
+            const submitBtn = event.target;
+            submitBtn.disabled = true;
+            submitBtn.textContent = '💾 Guardando...';
+
+            const reportId = document.getElementById('editReportId').value;
+            
+            // Calculate total hours from edited times
+            const horaEntrada = document.getElementById('editHoraEntrada').value;
+            const horaSalida = document.getElementById('editHoraSalida').value;
+            let totalHoras = 0;
+            
+            if (horaEntrada && horaSalida) {
+                const [entradaHora, entradaMin] = horaEntrada.split(':').map(Number);
+                const [salidaHora, salidaMin] = horaSalida.split(':').map(Number);
+                let totalMinutes = (salidaHora * 60 + salidaMin) - (entradaHora * 60 + entradaMin);
+                if (totalMinutes < 0) totalMinutes += 24 * 60;
+                totalHoras = totalMinutes / 60;
+            }
+            
+            // Get basic report data
+            const updatedData = {
+                technician: document.getElementById('editTechnician').value,
+                serviceType: document.getElementById('editServiceType').value,
+                horaEntrada: horaEntrada,
+                horaSalida: horaSalida,
+                tiempoServicio: totalHoras,
+                receptorNombre: document.getElementById('editReceptorNombre').value,
+                receptorCargo: document.getElementById('editReceptorCargo').value,
+                observaciones: document.getElementById('editObservaciones').value,
+                updatedAt: firebase.firestore.Timestamp.now()
+            };
+
+            // Get equipment changes if any
+            if (equipmentCount && equipmentCount > 0) {
+                const updatedEquipments = [];
+                
+                // Get original report to preserve equipment structure
+                const docSnap = await window.db.collection('reports').doc(reportId).get();
+                const originalReport = docSnap.data();
+                
+                for (let i = 0; i < equipmentCount; i++) {
+                    const originalEq = originalReport.equipments[i];
+                    
+                    // Get trabajos
+                    const trabajos = [];
+                    document.querySelectorAll(`.eq-${i}-trabajo:checked`).forEach(cb => {
+                        trabajos.push(cb.value);
+                    });
+                    
+                    // Get parametros
+                    const parametros = {
+                        horasFiltro: document.querySelector(`.eq-${i}-param-horas`)?.value || '',
+                        presionBomba: document.querySelector(`.eq-${i}-param-presion`)?.value || '',
+                        viscosidad: document.querySelector(`.eq-${i}-param-viscosidad`)?.value || ''
+                    };
+                    
+                    // Get materiales
+                    const materiales = [];
+                    const materialRows = document.querySelectorAll(`.eq-${i}-materials tr`);
+                    materialRows.forEach(row => {
+                        const inputs = row.querySelectorAll('input');
+                        if (inputs.length === 3) {
+                            const cantidad = inputs[0].value.trim();
+                            const descripcion = inputs[1].value.trim();
+                            const referencia = inputs[2].value.trim();
+                            if (cantidad || descripcion || referencia) {
+                                materiales.push({ cantidad, descripcion, referencia });
+                            }
+                        }
+                    });
+                    
+                    // Get observations
+                    const observations = document.querySelector(`.eq-${i}-observations`)?.value || '';
+                    
+                    // Preserve original equipment data and update only work-related fields
+                    updatedEquipments.push({
+                        equipment: originalEq.equipment, // Preserve equipment info
+                        trabajos: trabajos,
+                        parametros: parametros,
+                        materiales: materiales,
+                        observations: observations,
+                        images: originalEq.images || [] // Preserve images
+                    });
+                }
+                
+                updatedData.equipments = updatedEquipments;
+            }
+
+            try {
+                await window.db.collection('reports').doc(reportId).update(updatedData);
+                
+                console.log('✅ Reporte actualizado');
+
+                // Reload reports list
+                await loadPendingReports();
+
+                window.closeEditReportModal();
+                
+                const successMsg = document.getElementById('adminSuccessMessage');
+                successMsg.textContent = '✓ Reporte actualizado exitosamente';
+                successMsg.style.display = 'block';
+                setTimeout(() => {
+                    successMsg.style.display = 'none';
+                }, 3000);
+            } catch (error) {
+                console.error('❌ Error actualizando reporte:', error);
+                alert('Error al actualizar el reporte: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '💾 Guardar Cambios';
+            }
+        };
+
+        window.rejectReport = async function(reportId) {
+            if (!confirm('¿Estás seguro de rechazar este reporte? El técnico deberá crearlo nuevamente.')) return;
+
+            try {
+                await window.db.collection('reports').doc(reportId).update({
+                    status: 'rejected',
+                    rejectedAt: firebase.firestore.Timestamp.now()
+                });
+
+                console.log('✅ Reporte rechazado:', reportId);
+                
+                const successMsg = document.getElementById('adminSuccessMessage');
+                successMsg.textContent = '✗ Reporte rechazado';
+                successMsg.style.display = 'block';
+                setTimeout(() => {
+                    successMsg.style.display = 'none';
+                }, 3000);
+
+                // Reload list
+                await loadPendingReports();
+            } catch (error) {
+                console.error('Error rechazando reporte:', error);
+                alert('Error al rechazar el reporte: ' + error.message);
+            }
+        };
+
+        // Make functions available globally
+        window.loadPendingReports = loadPendingReports;
+        
+        // Confirm script loaded
+        console.log('✅ SCRIPT COMPLETAMENTE CARGADO');
+    </script>
+</body>
+</html>
