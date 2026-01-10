@@ -3870,6 +3870,175 @@
         
         // Confirm script loaded
         console.log('✅ SCRIPT COMPLETAMENTE CARGADO');
+
+        // Load products from Airtable "Precios por Cliente" table when client is selected
+        async function loadProductsByClient(clientName, clientRecId) {
+                try {
+                            const bearerToken = 'patml3bKIYnfBc8lF.4b37dfa4e14db088daa2f4d8c9c3b5e1a6f2c8d3e4';
+                            const baseId = 'appZR5HyyKvRk6rhJ';
+                            const tableName = 'Precios por Cliente';
+
+                            // Fetch all records from the "Precios por Cliente" table
+                            const response = await fetch(
+                                            `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`,
+                                {
+                                                    headers: {
+                                                                            'Authorization': `Bearer ${bearerToken}`
+                                                    }
+                                }
+                                        );
+
+                            if (!response.ok) {
+                                            throw new Error(`API Error: ${response.status}`);
+                            }
+
+                            const data = await response.json();
+                            const allRecords = data.records || [];
+
+                            // Filter records for the selected client
+                            const clientProducts = [];
+                            allRecords.forEach(record => {
+                                            const fields = record.fields;
+                                            // Check if this record belongs to the selected client
+                                            if (fields['Nombre del cliente'] === clientName) {
+                                                                // Collect all products for this client
+                                                                clientProducts.push({
+                                                                                        id: record.id,
+                                                                                        id_producto: fields['Id'] || '',
+                                                                                        producto: fields['Producto'] || '',
+                                                                                        precio: fields['Precio acordado'] || 0,
+                                                                                        observaciones: fields['Observaciones'] || ''
+                                                                    });
+                                            }
+                            });
+
+                            // Display the products
+                            displayProductsForClient(clientProducts);
+
+                } catch (error) {
+                            console.error('Error loading products from Airtable:', error);
+                            alert('Error al cargar los productos: ' + error.message);
+                }
+        }
+
+        // Display products for the selected client in the remisiones form
+        function displayProductsForClient(products) {
+                const productContainer = document.getElementById('productosContainer') || createProductContainer();
+
+                // Clear existing products
+                productContainer.innerHTML = '';
+
+                if (products.length === 0) {
+                            productContainer.innerHTML = '<p style="color: #999; padding: 10px;">No hay productos disponibles para este cliente.</p>';
+                return;
+                }
+
+                // Add a header
+                const header = document.createElement('div');
+                header.style.cssText = 'margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 5px; font-weight: bold;';
+                header.textContent = `Productos disponibles para ${products[0].cliente || 'este cliente'} (${products.length}):`;
+                productContainer.appendChild(header);
+
+                // Add each product as a selectable row
+                products.forEach((product, index) => {
+                            const productRow = document.createElement('div');
+                            productRow.style.cssText = 'display: flex; align-items: center; margin: 8px 0; padding: 10px; background: white; border: 1px solid #ddd; border-radius: 5px;';
+                            productRow.innerHTML = `
+                                        <input type="checkbox" id="prod_${index}" style="margin-right: 10px; cursor: pointer;" data-product='${JSON.stringify(product)}'>
+                                                    <label for="prod_${index}" style="cursor: pointer; flex-grow: 1;">
+                                                                    <strong>${product.id_producto}</strong> - ${product.producto}
+                                                                                    <span style="color: #666; margin-left: 10px;">$${Number(product.precio).toLocaleString('es-CO')}</span>
+                    </label>
+                                <input type="number" style="width: 60px; margin-left: 10px;" placeholder="Cant." value="1" min="1" data-product-qty="${index}">
+                                        `;
+
+                            // Add event listener to add product when checkbox is checked
+                            productRow.querySelector('input[type="checkbox"]').addEventListener('change', function() {
+                                            if (this.checked) {
+                                                                const product = JSON.parse(this.getAttribute('data-product'));
+                                                                const qty = productRow.querySelector(`[data-product-qty="${index}"]`).value || '1';
+                                                                addSelectedProduct(product, parseInt(qty));
+                                                                this.checked = false; // Uncheck after adding
+                                            }
+                            });
+
+                            productContainer.appendChild(productRow);
+                });
+        }
+
+        // Create or find the products container
+        function createProductContainer() {
+                let container = document.getElementById('productosContainer');
+                if (!container) {
+                            // Insert after the Productos heading
+                            const productosHeading = Array.from(document.querySelectorAll('label, h3')).find(el => el.textContent.includes('Productos'));
+                            if (productosHeading && productosHeading.parentElement) {
+                                            container = document.createElement('div');
+                                            container.id = 'productosContainer';
+                                            container.style.cssText = 'margin: 15px 0; padding: 10px; background: #f9f9f9; border-radius: 5px; max-height: 300px; overflow-y: auto;';
+                                            productosHeading.parentElement.insertBefore(container, productosHeading.nextElementSibling.nextElementSibling);
+                            }
+                }
+                return container;
+        }
+
+        // Add the selected product to the products table
+        function addSelectedProduct(product, quantity) {
+                const productosSection = document.querySelector('[id*="producto"]') || document.querySelector('table');
+                if (!productosSection) {
+                            alert('No se encontró la tabla de productos');
+                            return;
+                }
+
+        // Find the products table and add a new row
+                const table = document.querySelector('table') || document.querySelector('[role="table"]');
+                if (table) {
+                            const newRow = table.querySelector('tbody')?.insertRow() || table.insertRow();
+                            const cells = [product.id_producto, product.producto, quantity];
+                            cells.forEach((cell, index) => {
+                                            if (newRow.cells[index]) {
+                                                                newRow.cells[index].value = cell;
+                                            }
+                            });
+                }
+        }
+
+        // Hook into client selection for remisiones form
+        document.addEventListener('DOMContentLoaded', function() {
+                // Find the client input in the remisiones form
+                const clientInputs = document.querySelectorAll('input[placeholder*="Buscar cliente"], input[placeholder*="cliente"]');
+
+                clientInputs.forEach(input => {
+                            // Check if this is the remisiones form by looking for context
+                            if (input.closest('form')?.textContent.includes('Remisión')) {
+                                            input.addEventListener('change', function() {
+                                                                if (this.value) {
+                                                                                        // Extract client name from the input or from a nearby display element
+                                                                                        const clientName = this.value;
+                                                                                        const clientRecId = document.querySelector('input[type="hidden"][value*="rec"]')?.value || '';
+                                                                                        loadProductsByClient(clientName, clientRecId);
+                                                                }
+                                            });
+
+                                            // Also listen for when a client is selected from the dropdown
+                                            const clientDisplay = input.closest('form')?.querySelector('[style*="background"]');
+                                            if (clientDisplay) {
+                                                                const observer = new MutationObserver(() => {
+                                                                                        const displayedName = clientDisplay.textContent.trim();
+                                                                                        if (displayedName && !displayedName.includes('Selecciona')) {
+                                                                                                                    loadProductsByClient(displayedName, '');
+                                                                                            }
+                                                                });
+                                                                observer.observe(clientDisplay, { childList: true, characterData: true, subtree: true });
+                                            }
+                            }
+                });
+        });
+
+        // Make functions available globally
+        window.loadProductsByClient = loadProductsByClient;
+        window.displayProductsForClient = displayProductsForClient;
+        window.addSelectedProduct = addSelectedProduct;
     </script>
 </body>
 </html>
