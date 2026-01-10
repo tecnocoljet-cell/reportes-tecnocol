@@ -3872,674 +3872,627 @@
         console.log('✅ SCRIPT COMPLETAMENTE CARGADO');
 
         // ==========================================
-        // SISTEMA INTELIGENTE - DETECTA ESTRUCTURA AUTOMÁTICAMENTE
+        // SISTEMA PARA ESTRUCTURA REAL DE AIRTABLE
+        // Productos y precios en "Precios por Cliente"
         // ==========================================
         
         (function() {
             'use strict';
             
-            console.log('🧠 Sistema inteligente iniciado - Detectará estructura automáticamente');
+            console.log('🎯 Sistema adaptado a estructura real de Airtable');
             
             const CONFIG = {
                 airtable: {
                     token: 'patTxoLSfgJZYsfoa.a30cdbab9572e691d72c75c9ccfd23bd6d40ae4be7278a2b725961475c30f01b',
-                    baseId: 'appZR5HyyKvRk6rhJ'
+                    baseId: 'appZR5HyyKvRk6rhJ',
+                    tabla: 'Precios por Cliente'
                 }
             };
             
             let state = {
-                catalogoProductos: [],
-                preciosCliente: {},
+                productosCliente: [],
                 productoSeleccionado: null,
                 productosAgregados: [],
-                estructuraDetectada: {
-                    catalogo: { tabla: null, campos: {} },
-                    precios: { tabla: null, campos: {} }
-                }
+                interfazCreada: false
             };
             
             // ==========================================
-            // 1. DETECTAR TODAS LAS TABLAS DISPONIBLES
+            // ESPERAR FIREBASE
             // ==========================================
             
-            async function detectarTablasDisponibles() {
-                console.log('🔍 Detectando tablas en Airtable...');
+            function esperarFirebase(intentos = 0) {
+                if (intentos > 30) {
+                    console.warn('⚠️ Firebase no disponible, continuando de todas formas');
+                    iniciar();
+                    return;
+                }
                 
+                if (typeof firebase !== 'undefined' && firebase.firestore && window.db) {
+                    console.log('✅ Firebase listo');
+                    iniciar();
+                } else {
+                    setTimeout(() => esperarFirebase(intentos + 1), 500);
+                }
+            }
+            
+            // ==========================================
+            // CARGAR PRODUCTOS DEL CLIENTE
+            // ==========================================
+            
+            async function cargarProductosCliente(nombreCliente) {
                 try {
-                    // Intentar obtener metadata de la base
-                    const url = `https://api.airtable.com/v0/meta/bases/${CONFIG.airtable.baseId}/tables`;
+                    console.log(`📦 Cargando productos de: ${nombreCliente}`);
+                    mostrarMensaje(`Cargando productos de ${nombreCliente}...`, 'info');
                     
-                    const response = await fetch(url, {
-                        headers: { 'Authorization': `Bearer ${CONFIG.airtable.token}` }
-                    });
+                    // Limpiar nombre del cliente
+                    const nombreLimpio = nombreCliente.replace(/['"]/g, '').trim();
                     
-                    if (response.ok) {
-                        const data = await response.json();
-                        console.log('✅ Tablas encontradas:', data.tables.map(t => t.name).join(', '));
-                        return data.tables;
-                    }
-                } catch (error) {
-                    console.log('⚠️ No se pudo obtener metadata, probando tablas manualmente...');
-                }
-                
-                // Si falla, probar tablas comunes
-                return await probarTablasComunes();
-            }
-            
-            async function probarTablasComunes() {
-                const tablasComunes = [
-                    'Catálogo de Productos', 'Catalogo de Productos', 'Productos', 'PRODUCTOS',
-                    'Catálogo', 'Catalogo', 'CATALOGO', 'Items', 'ITEMS',
-                    'Precios por Cliente', 'Precios Cliente', 'Precios', 'PRECIOS',
-                    'Gestión de Clientes', 'Clientes', 'CLIENTES'
-                ];
-                
-                const tablasEncontradas = [];
-                
-                for (const nombreTabla of tablasComunes) {
-                    try {
-                        const url = `https://api.airtable.com/v0/${CONFIG.airtable.baseId}/${encodeURIComponent(nombreTabla)}?maxRecords=1`;
-                        
-                        const response = await fetch(url, {
-                            headers: { 'Authorization': `Bearer ${CONFIG.airtable.token}` },
-                            signal: AbortSignal.timeout(5000)
-                        });
-                        
-                        if (response.ok) {
-                            const data = await response.json();
-                            tablasEncontradas.push({
-                                name: nombreTabla,
-                                fields: data.records[0] ? Object.keys(data.records[0].fields) : []
+                    // Intentar con múltiples fórmulas
+                    const formulas = [
+                        `SEARCH("${nombreLimpio}", {Nombre del cliente})`,
+                        `{Nombre del cliente} = "${nombreLimpio}"`,
+                        `FIND("${nombreLimpio}", {Nombre del cliente}) > 0`
+                    ];
+                    
+                    for (const formula of formulas) {
+                        try {
+                            const url = `https://api.airtable.com/v0/${CONFIG.airtable.baseId}/${encodeURIComponent(CONFIG.airtable.tabla)}?filterByFormula=${encodeURIComponent(formula)}`;
+                            
+                            console.log(`🔍 Probando fórmula: ${formula}`);
+                            
+                            const response = await fetch(url, {
+                                method: 'GET',
+                                headers: {
+                                    'Authorization': `Bearer ${CONFIG.airtable.token}`,
+                                    'Content-Type': 'application/json'
+                                },
+                                signal: AbortSignal.timeout(10000)
                             });
-                            console.log(`✅ Tabla encontrada: "${nombreTabla}" con campos:`, data.records[0] ? Object.keys(data.records[0].fields).join(', ') : 'vacía');
-                        }
-                    } catch (e) {
-                        // Tabla no existe o timeout
-                    }
-                }
-                
-                return tablasEncontradas;
-            }
-            
-            // ==========================================
-            // 2. IDENTIFICAR TABLA DE CATÁLOGO
-            // ==========================================
-            
-            async function identificarTablaCatalogo(tablas) {
-                console.log('🔍 Identificando tabla de catálogo...');
-                
-                // Buscar tabla que tenga campos típicos de productos
-                const palabrasClaveCatalogo = ['codigo', 'código', 'code', 'producto', 'nombre', 'descripcion', 'item'];
-                
-                for (const tabla of tablas) {
-                    const camposLower = tabla.fields.map(f => f.toLowerCase());
-                    
-                    // Contar coincidencias
-                    const coincidencias = palabrasClaveCatalogo.filter(palabra =>
-                        camposLower.some(campo => campo.includes(palabra))
-                    ).length;
-                    
-                    if (coincidencias >= 2) {
-                        console.log(`✅ Tabla de catálogo identificada: "${tabla.name}"`);
-                        
-                        // Detectar campos
-                        const campos = detectarCamposCatalogo(tabla.fields);
-                        
-                        // Cargar datos
-                        const productos = await cargarDatosTabla(tabla.name);
-                        
-                        if (productos.length > 0) {
-                            state.estructuraDetectada.catalogo = {
-                                tabla: tabla.name,
-                                campos: campos
-                            };
                             
-                            state.catalogoProductos = productos.map(p => ({
-                                codigo: extraerValor(p.fields, campos.codigo) || 'SIN-CODIGO',
-                                nombre: extraerValor(p.fields, campos.nombre) || 'Sin nombre',
-                                unidad: extraerValor(p.fields, campos.unidad) || 'Unidad'
-                            }));
+                            if (!response.ok) {
+                                console.warn(`⚠️ HTTP ${response.status} con fórmula: ${formula}`);
+                                continue;
+                            }
                             
-                            console.log(`✅ ${state.catalogoProductos.length} productos cargados`);
-                            console.log('📋 Primeros 3 productos:', state.catalogoProductos.slice(0, 3));
-                            
-                            return true;
-                        }
-                    }
-                }
-                
-                console.error('❌ No se pudo identificar tabla de catálogo');
-                return false;
-            }
-            
-            function detectarCamposCatalogo(camposDisponibles) {
-                const mapeo = {
-                    codigo: detectarCampo(camposDisponibles, ['código', 'codigo', 'code', 'id', 'sku', 'ref', 'referencia']),
-                    nombre: detectarCampo(camposDisponibles, ['nombre', 'name', 'descripción', 'descripcion', 'producto', 'item', 'description']),
-                    unidad: detectarCampo(camposDisponibles, ['unidad', 'unit', 'um', 'medida', 'uom'])
-                };
-                
-                console.log('🔧 Campos detectados:', mapeo);
-                return mapeo;
-            }
-            
-            function detectarCampo(camposDisponibles, palabrasClave) {
-                for (const palabra of palabrasClave) {
-                    const encontrado = camposDisponibles.find(campo =>
-                        campo.toLowerCase().includes(palabra.toLowerCase())
-                    );
-                    if (encontrado) return encontrado;
-                }
-                return camposDisponibles[0]; // Fallback: usar primer campo
-            }
-            
-            function extraerValor(fields, nombreCampo) {
-                if (!nombreCampo || !fields) return null;
-                const valor = fields[nombreCampo];
-                return valor ? String(valor).trim() : null;
-            }
-            
-            // ==========================================
-            // 3. IDENTIFICAR TABLA DE PRECIOS
-            // ==========================================
-            
-            async function identificarTablaPrecios(tablas, nombreCliente) {
-                console.log(`🔍 Buscando precios para: ${nombreCliente}`);
-                
-                const palabrasClavePrecios = ['precio', 'price', 'valor', 'cliente', 'client'];
-                
-                for (const tabla of tablas) {
-                    const camposLower = tabla.fields.map(f => f.toLowerCase());
-                    
-                    const coincidencias = palabrasClavePrecios.filter(palabra =>
-                        camposLower.some(campo => campo.includes(palabra))
-                    ).length;
-                    
-                    if (coincidencias >= 2) {
-                        console.log(`🔍 Probando tabla de precios: "${tabla.name}"`);
-                        
-                        const campos = detectarCamposPrecios(tabla.fields);
-                        
-                        // Intentar cargar precios con múltiples filtros
-                        const precios = await cargarPreciosConFiltros(tabla.name, campos, nombreCliente);
-                        
-                        if (precios && Object.keys(precios).length > 0) {
-                            state.estructuraDetectada.precios = {
-                                tabla: tabla.name,
-                                campos: campos
-                            };
-                            
-                            state.preciosCliente = precios;
-                            
-                            console.log(`✅ ${Object.keys(precios).length} precios cargados desde "${tabla.name}"`);
-                            console.log('💰 Primeros 3 precios:', Object.entries(precios).slice(0, 3));
-                            
-                            return true;
-                        }
-                    }
-                }
-                
-                console.warn('⚠️ No se encontraron precios específicos, usando precio 0 para todos');
-                // SOLUCIÓN: Asignar precio 0 a todos
-                state.catalogoProductos.forEach(p => {
-                    state.preciosCliente[p.codigo] = 0;
-                });
-                return false;
-            }
-            
-            function detectarCamposPrecios(camposDisponibles) {
-                return {
-                    cliente: detectarCampo(camposDisponibles, ['cliente', 'client', 'nombre cliente', 'empresa', 'company']),
-                    codigo: detectarCampo(camposDisponibles, ['id', 'código', 'codigo', 'producto', 'item', 'sku']),
-                    precio: detectarCampo(camposDisponibles, ['precio', 'price', 'valor', 'value', 'acordado', 'unitario'])
-                };
-            }
-            
-            async function cargarPreciosConFiltros(nombreTabla, campos, nombreCliente) {
-                const precios = {};
-                
-                // Estrategia 1: Filtrar por nombre de cliente
-                const formulas = [
-                    `SEARCH("${nombreCliente}", {${campos.cliente}})`,
-                    `{${campos.cliente}} = "${nombreCliente}"`,
-                    `LOWER({${campos.cliente}}) = LOWER("${nombreCliente}")`,
-                    `FIND("${nombreCliente}", {${campos.cliente}})`,
-                ];
-                
-                for (const formula of formulas) {
-                    try {
-                        const url = `https://api.airtable.com/v0/${CONFIG.airtable.baseId}/${encodeURIComponent(nombreTabla)}?filterByFormula=${encodeURIComponent(formula)}`;
-                        
-                        const response = await fetch(url, {
-                            headers: { 'Authorization': `Bearer ${CONFIG.airtable.token}` },
-                            signal: AbortSignal.timeout(8000)
-                        });
-                        
-                        if (response.ok) {
                             const data = await response.json();
                             
                             if (data.records && data.records.length > 0) {
-                                console.log(`✅ Encontrados ${data.records.length} registros con fórmula: ${formula}`);
+                                console.log(`✅ Encontrados ${data.records.length} productos`);
                                 
-                                data.records.forEach(record => {
-                                    const codigo = extraerValor(record.fields, campos.codigo);
-                                    const precioStr = extraerValor(record.fields, campos.precio);
-                                    const precio = parseFloat(precioStr);
-                                    
-                                    if (codigo && !isNaN(precio) && precio > 0) {
-                                        precios[codigo] = precio;
-                                    }
-                                });
+                                // Procesar productos
+                                state.productosCliente = data.records.map(record => {
+                                    const fields = record.fields;
+                                    return {
+                                        codigo: String(fields['Id'] || '').trim(),
+                                        nombre: String(fields['Producto'] || '').trim(),
+                                        precio: parseFloat(fields['Precio acordado']) || 0,
+                                        observaciones: String(fields['Observaciones'] || '').trim()
+                                    };
+                                }).filter(p => p.codigo && p.nombre && p.precio > 0);
                                 
-                                if (Object.keys(precios).length > 0) {
-                                    return precios;
+                                console.log(`✅ ${state.productosCliente.length} productos válidos procesados`);
+                                console.log('📋 Productos:', state.productosCliente.slice(0, 3));
+                                
+                                if (state.productosCliente.length > 0) {
+                                    habilitarBuscador();
+                                    mostrarMensaje(`✅ ${state.productosCliente.length} productos disponibles`, 'success');
+                                    setTimeout(ocultarMensaje, 3000);
+                                    return true;
                                 }
                             }
-                        }
-                    } catch (e) {
-                        console.warn(`⚠️ Fórmula falló: ${formula.substring(0, 50)}...`);
-                    }
-                }
-                
-                // Estrategia 2: Cargar toda la tabla y filtrar manualmente
-                console.log('🔄 Cargando tabla completa y filtrando manualmente...');
-                const todos = await cargarDatosTabla(nombreTabla);
-                
-                todos.forEach(record => {
-                    const clienteRec = extraerValor(record.fields, campos.cliente);
-                    
-                    if (clienteRec && clienteRec.toLowerCase().includes(nombreCliente.toLowerCase())) {
-                        const codigo = extraerValor(record.fields, campos.codigo);
-                        const precioStr = extraerValor(record.fields, campos.precio);
-                        const precio = parseFloat(precioStr);
-                        
-                        if (codigo && !isNaN(precio) && precio > 0) {
-                            precios[codigo] = precio;
+                            
+                        } catch (error) {
+                            console.warn(`⚠️ Error con fórmula: ${formula}`, error.message);
                         }
                     }
-                });
-                
-                return precios;
-            }
-            
-            // ==========================================
-            // 4. CARGAR DATOS DE TABLA
-            // ==========================================
-            
-            async function cargarDatosTabla(nombreTabla) {
-                try {
-                    const url = `https://api.airtable.com/v0/${CONFIG.airtable.baseId}/${encodeURIComponent(nombreTabla)}`;
                     
-                    const response = await fetch(url, {
-                        headers: { 'Authorization': `Bearer ${CONFIG.airtable.token}` },
-                        signal: AbortSignal.timeout(15000)
-                    });
+                    // Si llegó aquí, no encontró productos
+                    console.warn('⚠️ No se encontraron productos para este cliente');
+                    state.productosCliente = [];
+                    deshabilitarBuscador();
+                    mostrarMensaje('⚠️ No se encontraron productos para este cliente', 'error');
+                    return false;
                     
-                    if (response.ok) {
-                        const data = await response.json();
-                        return data.records || [];
-                    }
                 } catch (error) {
-                    console.error(`Error cargando "${nombreTabla}":`, error.message);
+                    console.error('❌ Error general:', error);
+                    mostrarMensaje('Error al cargar productos', 'error');
+                    return false;
                 }
-                
-                return [];
             }
             
             // ==========================================
-            // 5. INTERFAZ Y LÓGICA
+            // CREAR INTERFAZ
             // ==========================================
             
             function crearInterfaz() {
+                if (state.interfazCreada) return;
+                
                 const contenedores = [
                     document.getElementById('remisionesContent'),
                     document.querySelector('[id*="remision"]'),
+                    document.querySelector('[id*="Remision"]'),
                     document.querySelector('.tab-content'),
-                    document.body
+                    document.querySelector('main')
                 ];
                 
-                const contenedor = contenedores.find(c => c);
+                const contenedor = contenedores.find(c => c !== null);
+                
                 if (!contenedor) {
+                    console.warn('⚠️ Contenedor no encontrado, reintentando...');
                     setTimeout(crearInterfaz, 1000);
                     return;
                 }
                 
-                if (document.getElementById('sistema-prod-auto')) return;
+                console.log(`✅ Contenedor encontrado: ${contenedor.id || contenedor.className || 'elemento'}`);
                 
-                contenedor.insertAdjacentHTML('afterbegin', `
-                    <div id="sistema-prod-auto" style="background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%); padding: 24px; border-radius: 12px; margin: 20px 0; border: 2px solid #86efac; box-shadow: 0 4px 6px rgba(0,0,0,0.07);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                            <h3 style="margin: 0; color: #1f2937; font-size: 20px; font-weight: 700;">
-                                🧠 Sistema Inteligente de Productos
-                            </h3>
-                            <button onclick="window.__mostrarInfo()" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
-                                ℹ️ Ver Info
+                const html = `
+                    <div id="sistema-productos-real" style="background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 100%); padding: 24px; border-radius: 12px; margin: 20px 0; border: 2px solid #10b981; box-shadow: 0 4px 6px rgba(0,0,0,0.07);">
+                        <h3 style="margin: 0 0 20px 0; color: #1f2937; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                            <span>📦</span>
+                            <span>Agregar Productos a la Remisión</span>
+                        </h3>
+                        
+                        <!-- Buscador de productos -->
+                        <div style="margin-bottom: 16px; position: relative;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 14px;">
+                                🔍 Buscar Producto:
+                            </label>
+                            <input 
+                                type="text" 
+                                id="buscar-producto-input"
+                                placeholder="Primero selecciona un cliente arriba..."
+                                disabled
+                                autocomplete="off"
+                                style="width: 100%; padding: 14px 16px; font-size: 15px; border: 2px solid #d1d5db; border-radius: 8px; background: #f9fafb; outline: none; transition: all 0.2s; font-weight: 500;"
+                            />
+                            <div id="resultados-productos" 
+                                 style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 2px solid #10b981; border-top: none; border-radius: 0 0 8px 8px; max-height: 350px; overflow-y: auto; z-index: 1000; box-shadow: 0 8px 16px rgba(0,0,0,0.15); margin-top: -2px;">
+                            </div>
+                        </div>
+                        
+                        <!-- Cantidad y botón agregar -->
+                        <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+                            <div style="flex: 0 0 auto;">
+                                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 14px;">
+                                    Cantidad:
+                                </label>
+                                <input 
+                                    type="number" 
+                                    id="cantidad-input" 
+                                    value="1" 
+                                    min="1"
+                                    step="1"
+                                    style="width: 110px; padding: 12px; text-align: center; border: 2px solid #d1d5db; border-radius: 8px; font-size: 16px; font-weight: 700; outline: none;"
+                                />
+                            </div>
+                            <button 
+                                id="btn-agregar-prod" 
+                                disabled
+                                style="flex: 0 0 auto; background: #10b981; color: white; border: none; padding: 14px 28px; border-radius: 8px; font-weight: 700; font-size: 15px; cursor: not-allowed; opacity: 0.4; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                ➕ Agregar Producto
                             </button>
                         </div>
                         
-                        <div id="info-deteccion" style="background: #dbeafe; border: 2px solid #3b82f6; border-radius: 8px; padding: 12px; margin-bottom: 16px; display: none; font-size: 14px;">
-                            <strong>📊 Estructura Detectada:</strong>
-                            <div id="info-estructura" style="margin-top: 8px; font-family: monospace; font-size: 12px;"></div>
+                        <!-- Mensaje de estado -->
+                        <div id="mensaje-estado" style="margin-top: 16px; padding: 14px; border-radius: 8px; display: none; font-weight: 600; font-size: 14px;">
                         </div>
-                        
-                        <div style="margin-bottom: 16px;">
-                            <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151;">Buscar Producto:</label>
-                            <input type="text" id="input-search-auto" placeholder="Primero selecciona un cliente..." disabled autocomplete="off" style="width: 100%; padding: 12px; border: 2px solid #d1d5db; border-radius: 8px; background: #f3f4f6; outline: none;"/>
-                            <div id="dropdown-auto" style="display: none; position: absolute; background: white; border: 2px solid #3b82f6; border-radius: 0 0 8px 8px; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></div>
-                        </div>
-                        
-                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                            <div>
-                                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151;">Cantidad:</label>
-                                <input type="number" id="input-qty-auto" value="1" min="1" style="width: 100px; padding: 10px; text-align: center; border: 2px solid #d1d5db; border-radius: 6px; font-weight: 600;"/>
-                            </div>
-                            <button id="btn-add-auto" disabled style="align-self: flex-end; background: #10b981; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: not-allowed; opacity: 0.5;">➕ Agregar</button>
-                        </div>
-                        
-                        <div id="msg-auto" style="margin-top: 12px; padding: 12px; border-radius: 6px; display: none; font-weight: 500;"></div>
                     </div>
                     
-                    <div id="tabla-auto-container"></div>
-                `);
+                    <!-- Tabla de productos agregados -->
+                    <div id="tabla-productos-contenedor" style="margin-top: 20px;">
+                    </div>
+                `;
                 
+                contenedor.insertAdjacentHTML('afterbegin', html);
+                
+                state.interfazCreada = true;
+                console.log('✅ Interfaz creada correctamente');
+                
+                // Conectar eventos
                 conectarEventos();
-                console.log('✅ Interfaz creada');
             }
             
-            window.__mostrarInfo = function() {
-                const info = document.getElementById('info-deteccion');
-                const infoEstructura = document.getElementById('info-estructura');
-                
-                if (info.style.display === 'none') {
-                    let html = '';
-                    
-                    if (state.estructuraDetectada.catalogo.tabla) {
-                        html += `<div style="margin-bottom: 8px;">
-                            <strong>📦 Catálogo:</strong> ${state.estructuraDetectada.catalogo.tabla}<br>
-                            - Código: ${state.estructuraDetectada.catalogo.campos.codigo}<br>
-                            - Nombre: ${state.estructuraDetectada.catalogo.campos.nombre}<br>
-                            - Unidad: ${state.estructuraDetectada.catalogo.campos.unidad}<br>
-                            - Productos: ${state.catalogoProductos.length}
-                        </div>`;
-                    }
-                    
-                    if (state.estructuraDetectada.precios.tabla) {
-                        html += `<div>
-                            <strong>💰 Precios:</strong> ${state.estructuraDetectada.precios.tabla}<br>
-                            - Cliente: ${state.estructuraDetectada.precios.campos.cliente}<br>
-                            - Código: ${state.estructuraDetectada.precios.campos.codigo}<br>
-                            - Precio: ${state.estructuraDetectada.precios.campos.precio}<br>
-                            - Con precio: ${Object.keys(state.preciosCliente).length}
-                        </div>`;
-                    }
-                    
-                    infoEstructura.innerHTML = html || 'Aún no se ha detectado la estructura';
-                    info.style.display = 'block';
-                } else {
-                    info.style.display = 'none';
-                }
-            };
+            // ==========================================
+            // CONECTAR EVENTOS
+            // ==========================================
             
             function conectarEventos() {
-                const input = document.getElementById('input-search-auto');
-                const btn = document.getElementById('btn-add-auto');
-                
-                if (input) {
-                    input.oninput = (e) => buscar(e.target.value);
-                    input.onfocus = function() {
+                // Buscador
+                const inputBuscar = document.getElementById('buscar-producto-input');
+                if (inputBuscar) {
+                    inputBuscar.addEventListener('input', (e) => buscarProducto(e.target.value));
+                    
+                    inputBuscar.addEventListener('focus', function() {
                         if (!this.disabled) {
-                            this.style.borderColor = '#3b82f6';
+                            this.style.borderColor = '#10b981';
                             this.style.background = 'white';
+                            this.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
                         }
-                    };
-                    input.onblur = function() {
+                    });
+                    
+                    inputBuscar.addEventListener('blur', function() {
                         this.style.borderColor = '#d1d5db';
+                        this.style.boxShadow = 'none';
+                        if (this.disabled) this.style.background = '#f9fafb';
+                        
                         setTimeout(() => {
-                            const dd = document.getElementById('dropdown-auto');
-                            if (dd) dd.style.display = 'none';
-                        }, 200);
-                    };
+                            const dropdown = document.getElementById('resultados-productos');
+                            if (dropdown) dropdown.style.display = 'none';
+                        }, 250);
+                    });
                 }
                 
-                if (btn) btn.onclick = agregar;
+                // Botón agregar
+                const btnAgregar = document.getElementById('btn-agregar-prod');
+                if (btnAgregar) {
+                    btnAgregar.addEventListener('click', agregarProducto);
+                }
                 
-                setTimeout(conectarSelector, 1000);
+                // Conectar selector de cliente
+                setTimeout(conectarSelectorCliente, 1000);
             }
             
-            function conectarSelector() {
-                document.querySelectorAll('select, input').forEach(el => {
-                    const id = (el.id || '').toLowerCase();
-                    const name = (el.name || '').toLowerCase();
+            function conectarSelectorCliente() {
+                const todosLosElementos = document.querySelectorAll('select, input[type="text"], input[type="search"]');
+                let encontrado = false;
+                
+                todosLosElementos.forEach(elemento => {
+                    const id = (elemento.id || '').toLowerCase();
+                    const name = (elemento.name || '').toLowerCase();
+                    const placeholder = (elemento.placeholder || '').toLowerCase();
                     
-                    if (id.includes('cliente') || name.includes('cliente')) {
-                        el.addEventListener('change', async function() {
-                            let nombre = this.tagName === 'SELECT' ?
-                                this.options[this.selectedIndex]?.text :
-                                this.value;
+                    if (id.includes('cliente') || name.includes('cliente') || placeholder.includes('cliente')) {
+                        elemento.addEventListener('change', function() {
+                            let nombreCliente = '';
                             
-                            if (nombre) {
-                                nombre = nombre.split('-')[0].trim();
-                                if (nombre.length > 2) {
-                                    console.log(`👤 Cliente seleccionado: ${nombre}`);
+                            if (this.tagName === 'SELECT') {
+                                const option = this.options[this.selectedIndex];
+                                nombreCliente = option ? option.text : '';
+                            } else {
+                                nombreCliente = this.value;
+                            }
+                            
+                            if (nombreCliente) {
+                                // Limpiar nombre (quitar NIT, separadores, etc.)
+                                nombreCliente = nombreCliente.split('-')[0].split('|')[0].split('(')[0].trim();
+                                
+                                if (nombreCliente.length > 2) {
+                                    console.log(`👤 Cliente seleccionado: "${nombreCliente}"`);
+                                    
+                                    // Limpiar productos agregados anteriores
                                     state.productosAgregados = [];
                                     actualizarTabla();
                                     
-                                    mostrarMsg('Detectando estructura...', 'info');
-                                    
-                                    const tablas = await detectarTablasDisponibles();
-                                    await identificarTablaPrecios(tablas, nombre);
-                                    
-                                    const input = document.getElementById('input-search-auto');
-                                    if (input) {
-                                        input.disabled = false;
-                                        input.placeholder = 'Escribe código o nombre...';
-                                        input.style.background = 'white';
-                                        input.focus();
-                                    }
-                                    
-                                    const count = Object.keys(state.preciosCliente).length;
-                                    mostrarMsg(`✅ ${count} productos disponibles`, 'success');
-                                    setTimeout(ocultarMsg, 3000);
+                                    // Cargar productos del cliente
+                                    cargarProductosCliente(nombreCliente);
                                 }
                             }
                         });
-                        console.log(`✅ Conectado: ${el.id || el.name}`);
+                        
+                        console.log(`✅ Conectado a selector de cliente: ${elemento.id || elemento.name || 'sin nombre'}`);
+                        encontrado = true;
                     }
                 });
+                
+                if (!encontrado) {
+                    console.warn('⚠️ Selector de cliente no encontrado, reintentando...');
+                    setTimeout(conectarSelectorCliente, 1000);
+                }
             }
             
-            function buscar(texto) {
-                const dd = document.getElementById('dropdown-auto');
-                if (!dd) return;
+            // ==========================================
+            // BUSCAR PRODUCTOS
+            // ==========================================
+            
+            function buscarProducto(texto) {
+                const dropdown = document.getElementById('resultados-productos');
+                if (!dropdown) return;
                 
                 if (!texto || texto.length < 2) {
-                    dd.style.display = 'none';
+                    dropdown.style.display = 'none';
                     return;
                 }
                 
-                const lower = texto.toLowerCase();
-                const conPrecio = state.catalogoProductos.filter(p => state.preciosCliente[p.codigo] !== undefined);
-                const res = conPrecio.filter(p =>
-                    p.codigo.toLowerCase().includes(lower) ||
-                    p.nombre.toLowerCase().includes(lower)
+                const textoLower = texto.toLowerCase().trim();
+                
+                // Buscar por código o nombre
+                const resultados = state.productosCliente.filter(p =>
+                    p.codigo.toLowerCase().includes(textoLower) ||
+                    p.nombre.toLowerCase().includes(textoLower)
                 );
                 
-                if (res.length === 0) {
-                    dd.innerHTML = '<div style="padding: 16px; text-align: center; color: #6b7280;">Sin resultados</div>';
-                } else {
-                    dd.innerHTML = res.slice(0, 10).map(p => {
-                        const precio = state.preciosCliente[p.codigo] || 0;
-                        return `
-                            <div onclick="window.__sel('${p.codigo}', '${p.nombre.replace(/'/g, "\\'")}', ${precio}, '${p.unidad}')"
-                                 style="padding: 12px; cursor: pointer; border-bottom: 1px solid #e5e7eb;"
-                                 onmouseover="this.style.background='#f3f4f6'"
-                                 onmouseout="this.style.background='white'">
-                                <div style="font-weight: 600;">${p.nombre}</div>
-                                <div style="font-size: 13px; color: #6b7280; margin-top: 4px;">
-                                    <span style="background: #e5e7eb; padding: 2px 8px; border-radius: 3px; font-family: monospace;">${p.codigo}</span>
-                                    <span> • ${p.unidad} • </span>
-                                    <span style="color: #059669; font-weight: 700;">$${precio.toLocaleString('es-CO')}</span>
-                                </div>
-                            </div>
-                        `;
-                    }).join('');
+                if (resultados.length === 0) {
+                    dropdown.innerHTML = `
+                        <div style="padding: 20px; text-align: center; color: #6b7280; font-size: 14px;">
+                            <div style="font-size: 32px; margin-bottom: 8px;">🔍</div>
+                            <div>No se encontraron productos</div>
+                        </div>
+                    `;
+                    dropdown.style.display = 'block';
+                    return;
                 }
                 
-                dd.style.display = 'block';
+                // Renderizar resultados
+                dropdown.innerHTML = resultados.slice(0, 10).map(producto => {
+                    const precioFormateado = new Intl.NumberFormat('es-CO', {
+                        style: 'currency',
+                        currency: 'COP',
+                        minimumFractionDigits: 0
+                    }).format(producto.precio);
+                    
+                    // Escapar caracteres especiales
+                    const nombreSeguro = producto.nombre.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    const obsSeguras = producto.observaciones.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    
+                    return `
+                        <div onclick="window.__seleccionarProd('${producto.codigo}', '${nombreSeguro}', ${producto.precio}, '${obsSeguras}')"
+                             style="padding: 14px 16px; cursor: pointer; border-bottom: 1px solid #e5e7eb; transition: all 0.15s;"
+                             onmouseover="this.style.background='#f0fdf4'; this.style.borderLeft='4px solid #10b981'; this.style.paddingLeft='12px'"
+                             onmouseout="this.style.background='white'; this.style.borderLeft='none'; this.style.paddingLeft='16px'">
+                            <div style="font-weight: 700; color: #1f2937; font-size: 15px; margin-bottom: 6px;">${producto.nombre}</div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: #6b7280;">
+                                <span style="background: #e5e7eb; padding: 3px 10px; border-radius: 4px; font-family: 'Courier New', monospace; font-weight: 700; color: #374151;">${producto.codigo}</span>
+                                <span style="color: #d1d5db;">•</span>
+                                <span style="color: #10b981; font-weight: 800; font-size: 14px;">${precioFormateado}</span>
+                                ${producto.observaciones ? `<span style="color: #d1d5db;">•</span><span style="color: #6b7280; font-style: italic;">${producto.observaciones}</span>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                dropdown.style.display = 'block';
             }
             
-            window.__sel = function(codigo, nombre, precio, unidad) {
-                state.productoSeleccionado = { codigo, nombre, precio, unidad };
-                document.getElementById('input-search-auto').value = `${nombre} (${codigo})`;
-                document.getElementById('dropdown-auto').style.display = 'none';
+            // ==========================================
+            // SELECCIONAR Y AGREGAR PRODUCTO
+            // ==========================================
+            
+            window.__seleccionarProd = function(codigo, nombre, precio, observaciones) {
+                state.productoSeleccionado = { codigo, nombre, precio, observaciones };
                 
-                const btn = document.getElementById('btn-add-auto');
-                btn.disabled = false;
-                btn.style.opacity = '1';
-                btn.style.cursor = 'pointer';
+                const inputBuscar = document.getElementById('buscar-producto-input');
+                if (inputBuscar) {
+                    inputBuscar.value = `${nombre} (${codigo})`;
+                }
                 
-                document.getElementById('input-qty-auto').focus();
+                const dropdown = document.getElementById('resultados-productos');
+                if (dropdown) dropdown.style.display = 'none';
+                
+                // Habilitar botón agregar
+                const btn = document.getElementById('btn-agregar-prod');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                    btn.style.boxShadow = '0 4px 8px rgba(16, 185, 129, 0.3)';
+                }
+                
+                // Focus en cantidad
+                const inputCantidad = document.getElementById('cantidad-input');
+                if (inputCantidad) {
+                    inputCantidad.focus();
+                    inputCantidad.select();
+                }
             };
             
-            function agregar() {
-                if (!state.productoSeleccionado) return;
-                
-                const qty = parseInt(document.getElementById('input-qty-auto').value) || 1;
-                
-                const existe = state.productosAgregados.find(p => p.codigo === state.productoSeleccionado.codigo);
-                if (existe) {
-                    existe.cantidad += qty;
-                } else {
-                    state.productosAgregados.push({ ...state.productoSeleccionado, cantidad: qty });
+            function agregarProducto() {
+                if (!state.productoSeleccionado) {
+                    mostrarMensaje('Selecciona un producto primero', 'error');
+                    return;
                 }
                 
-                document.getElementById('input-search-auto').value = '';
-                document.getElementById('input-qty-auto').value = '1';
-                state.productoSeleccionado = null;
+                const inputCantidad = document.getElementById('cantidad-input');
+                const cantidad = parseInt(inputCantidad.value) || 1;
                 
-                const btn = document.getElementById('btn-add-auto');
-                btn.disabled = true;
-                btn.style.opacity = '0.5';
-                btn.style.cursor = 'not-allowed';
+                if (cantidad < 1) {
+                    mostrarMensaje('La cantidad debe ser mayor a 0', 'error');
+                    return;
+                }
                 
+                // Verificar si ya existe
+                const existente = state.productosAgregados.find(p => p.codigo === state.productoSeleccionado.codigo);
+                
+                if (existente) {
+                    existente.cantidad += cantidad;
+                    mostrarMensaje(`✅ Cantidad actualizada a ${existente.cantidad}`, 'success');
+                } else {
+                    state.productosAgregados.push({
+                        ...state.productoSeleccionado,
+                        cantidad
+                    });
+                    mostrarMensaje('✅ Producto agregado correctamente', 'success');
+                }
+                
+                // Limpiar formulario
+                limpiarFormulario();
+                
+                // Actualizar tabla
                 actualizarTabla();
-                mostrarMsg('✅ Agregado', 'success');
-                setTimeout(ocultarMsg, 2000);
+                
+                // Ocultar mensaje después de 2 segundos
+                setTimeout(ocultarMensaje, 2000);
             }
             
+            function limpiarFormulario() {
+                const inputBuscar = document.getElementById('buscar-producto-input');
+                if (inputBuscar) {
+                    inputBuscar.value = '';
+                    inputBuscar.focus();
+                }
+                
+                const inputCantidad = document.getElementById('cantidad-input');
+                if (inputCantidad) inputCantidad.value = '1';
+                
+                const btn = document.getElementById('btn-agregar-prod');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.4';
+                    btn.style.cursor = 'not-allowed';
+                    btn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                }
+                
+                state.productoSeleccionado = null;
+            }
+            
+            // ==========================================
+            // ACTUALIZAR TABLA
+            // ==========================================
+            
             function actualizarTabla() {
-                const c = document.getElementById('tabla-auto-container');
-                if (!c) return;
+                const contenedor = document.getElementById('tabla-productos-contenedor');
+                if (!contenedor) return;
                 
                 if (state.productosAgregados.length === 0) {
-                    c.innerHTML = '';
+                    contenedor.innerHTML = '';
                     window.productosRemisionFinal = [];
                     return;
                 }
                 
-                let total = 0;
-                const filas = state.productosAgregados.map((p, i) => {
-                    const sub = p.cantidad * p.precio;
-                    total += sub;
+                let totalGeneral = 0;
+                
+                const filas = state.productosAgregados.map((producto, index) => {
+                    const subtotal = producto.cantidad * producto.precio;
+                    totalGeneral += subtotal;
+                    
                     return `
-                        <tr style="border-bottom: 1px solid #e5e7eb;">
-                            <td style="padding: 12px; font-family: monospace; font-weight: 600;">${p.codigo}</td>
-                            <td style="padding: 12px;">${p.nombre}</td>
-                            <td style="padding: 12px; text-align: center; font-weight: 600;">${p.cantidad}</td>
-                            <td style="padding: 12px; text-align: center;">1</td>
-                            <td style="padding: 12px; text-align: right;">$${p.precio.toLocaleString('es-CO')}</td>
-                            <td style="padding: 12px; text-align: right; color: #059669; font-weight: 700;">$${sub.toLocaleString('es-CO')}</td>
-                            <td style="padding: 12px; text-align: center;">
-                                <button onclick="window.__del(${i})" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">🗑️</button>
+                        <tr style="border-bottom: 1px solid #e5e7eb; transition: background 0.15s;"
+                            onmouseover="this.style.background='#f9fafb'"
+                            onmouseout="this.style.background='white'">
+                            <td style="padding: 14px; font-family: 'Courier New', monospace; font-weight: 700; color: #374151; font-size: 14px;">${producto.codigo}</td>
+                            <td style="padding: 14px; color: #1f2937; font-weight: 500;">${producto.nombre}</td>
+                            <td style="padding: 14px; text-align: center; font-weight: 700; color: #1f2937; font-size: 15px;">${producto.cantidad}</td>
+                            <td style="padding: 14px; text-align: center; color: #6b7280; font-weight: 600;">1</td>
+                            <td style="padding: 14px; text-align: right; color: #374151; font-weight: 600;">${formatearPrecio(producto.precio)}</td>
+                            <td style="padding: 14px; text-align: right; color: #10b981; font-weight: 800; font-size: 16px;">${formatearPrecio(subtotal)}</td>
+                            <td style="padding: 14px; text-align: center;">
+                                <button onclick="window.__eliminarProd(${index})"
+                                        style="background: #ef4444; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 13px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);"
+                                        onmouseover="this.style.background='#dc2626'; this.style.transform='scale(1.05)'"
+                                        onmouseout="this.style.background='#ef4444'; this.style.transform='scale(1)'">
+                                    🗑️ Eliminar
+                                </button>
                             </td>
                         </tr>
                     `;
                 }).join('');
                 
-                c.innerHTML = `
-                    <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                contenedor.innerHTML = `
+                    <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
                         <thead>
-                            <tr style="background: linear-gradient(to right, #059669, #047857); color: white;">
-                                <th style="padding: 14px; text-align: left;">CÓDIGO</th>
-                                <th style="padding: 14px; text-align: left;">DESCRIPCIÓN</th>
-                                <th style="padding: 14px; text-align: center;">CANTIDAD</th>
-                                <th style="padding: 14px; text-align: center;">BODEGA</th>
-                                <th style="padding: 14px; text-align: right;">V/UNIT</th>
-                                <th style="padding: 14px; text-align: right;">V/TOTAL</th>
-                                <th style="padding: 14px;"></th>
+                            <tr style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                                <th style="padding: 16px 14px; text-align: left; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Código</th>
+                                <th style="padding: 16px 14px; text-align: left; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Descripción</th>
+                                <th style="padding: 16px 14px; text-align: center; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Cantidad</th>
+                                <th style="padding: 16px 14px; text-align: center; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Bodega</th>
+                                <th style="padding: 16px 14px; text-align: right; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">V/Unit</th>
+                                <th style="padding: 16px 14px; text-align: right; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">V/Total</th>
+                                <th style="padding: 16px 14px; text-align: center; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Acción</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${filas}
-                            <tr style="background: #f3f4f6;">
-                                <td colspan="5" style="padding: 16px; text-align: right; font-weight: 700; font-size: 17px;">TOTAL:</td>
-                                <td style="padding: 16px; text-align: right; color: #059669; font-weight: 700; font-size: 20px;">$${total.toLocaleString('es-CO')}</td>
+                            <tr style="background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);">
+                                <td colspan="5" style="padding: 18px 14px; text-align: right; font-weight: 800; font-size: 18px; color: #1f2937; text-transform: uppercase; letter-spacing: 0.5px;">Total:</td>
+                                <td style="padding: 18px 14px; text-align: right; color: #10b981; font-weight: 900; font-size: 22px;">${formatearPrecio(totalGeneral)}</td>
                                 <td></td>
                             </tr>
                         </tbody>
                     </table>
                 `;
                 
+                // Exponer productos para uso externo
                 window.productosRemisionFinal = state.productosAgregados.map(p => ({
                     codigo: p.codigo,
                     nombre: p.nombre,
                     cantidad: p.cantidad,
                     precio: p.precio,
-                    unidad: p.unidad,
+                    observaciones: p.observaciones,
                     total: p.cantidad * p.precio
                 }));
             }
             
-            window.__del = function(i) {
-                if (confirm('¿Eliminar?')) {
-                    state.productosAgregados.splice(i, 1);
+            window.__eliminarProd = function(index) {
+                if (confirm('¿Eliminar este producto de la remisión?')) {
+                    state.productosAgregados.splice(index, 1);
                     actualizarTabla();
+                    mostrarMensaje('Producto eliminado', 'info');
+                    setTimeout(ocultarMensaje, 2000);
                 }
             };
             
-            function mostrarMsg(txt, tipo) {
-                const m = document.getElementById('msg-auto');
-                if (!m) return;
-                const c = {
-                    info: { bg: '#dbeafe', col: '#1e40af', bor: '#93c5fd' },
-                    success: { bg: '#d1fae5', col: '#065f46', bor: '#6ee7b7' },
-                    error: { bg: '#fee2e2', col: '#991b1b', bor: '#fca5a5' }
-                };
-                const s = c[tipo] || c.info;
-                m.style.background = s.bg;
-                m.style.color = s.col;
-                m.style.border = `2px solid ${s.bor}`;
-                m.textContent = txt;
-                m.style.display = 'block';
+            // ==========================================
+            // UTILIDADES
+            // ==========================================
+            
+            function formatearPrecio(numero) {
+                const valor = parseFloat(numero) || 0;
+                return new Intl.NumberFormat('es-CO', {
+                    style: 'currency',
+                    currency: 'COP',
+                    minimumFractionDigits: 0
+                }).format(valor);
             }
             
-            function ocultarMsg() {
-                const m = document.getElementById('msg-auto');
-                if (m) m.style.display = 'none';
+            function habilitarBuscador() {
+                const input = document.getElementById('buscar-producto-input');
+                if (input) {
+                    input.disabled = false;
+                    input.placeholder = '🔍 Escribe el código o nombre del producto...';
+                    input.style.background = 'white';
+                    input.style.cursor = 'text';
+                    input.focus();
+                }
+            }
+            
+            function deshabilitarBuscador() {
+                const input = document.getElementById('buscar-producto-input');
+                if (input) {
+                    input.disabled = true;
+                    input.value = '';
+                    input.placeholder = 'Primero selecciona un cliente arriba...';
+                    input.style.background = '#f9fafb';
+                    input.style.cursor = 'not-allowed';
+                }
+            }
+            
+            function mostrarMensaje(texto, tipo) {
+                const mensaje = document.getElementById('mensaje-estado');
+                if (!mensaje) return;
+                
+                const estilos = {
+                    info: { bg: '#dbeafe', color: '#1e40af', border: '#3b82f6' },
+                    success: { bg: '#d1fae5', color: '#065f46', border: '#10b981' },
+                    error: { bg: '#fee2e2', color: '#991b1b', border: '#ef4444' }
+                };
+                
+                const estilo = estilos[tipo] || estilos.info;
+                
+                mensaje.style.background = estilo.bg;
+                mensaje.style.color = estilo.color;
+                mensaje.style.border = `2px solid ${estilo.border}`;
+                mensaje.textContent = texto;
+                mensaje.style.display = 'block';
+            }
+            
+            function ocultarMensaje() {
+                const mensaje = document.getElementById('mensaje-estado');
+                if (mensaje) mensaje.style.display = 'none';
             }
             
             // ==========================================
             // INICIAR
             // ==========================================
             
-            async function iniciar() {
-                if (typeof firebase === 'undefined' || !window.db) {
-                    setTimeout(iniciar, 500);
-                    return;
-                }
-                
-                console.log('✅ Firebase listo, iniciando detección...');
-                
-                const tablas = await detectarTablasDisponibles();
-                await identificarTablaCatalogo(tablas);
+            function iniciar() {
+                console.log('🚀 Iniciando sistema de productos');
                 crearInterfaz();
             }
             
-            iniciar();
+            esperarFirebase();
             
         })();
         
-        console.log('✅ Sistema inteligente con detección automática cargado');
+        console.log('✅ Sistema para estructura real de Airtable cargado');
     </script>
 </body>
 </html>
