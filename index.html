@@ -3872,27 +3872,18 @@
         console.log('✅ SCRIPT COMPLETAMENTE CARGADO');
 
         // ==========================================
-        // SISTEMA AUTO-REPARABLE DE PRODUCTOS
-        // Soluciona errores automáticamente
+        // SISTEMA INTELIGENTE - DETECTA ESTRUCTURA AUTOMÁTICAMENTE
         // ==========================================
         
         (function() {
             'use strict';
             
-            console.log('🛠️ Sistema auto-reparable iniciado');
+            console.log('🧠 Sistema inteligente iniciado - Detectará estructura automáticamente');
             
             const CONFIG = {
                 airtable: {
                     token: 'patTxoLSfgJZYsfoa.a30cdbab9572e691d72c75c9ccfd23bd6d40ae4be7278a2b725961475c30f01b',
-                    baseId: 'appZR5HyyKvRk6rhJ',
-                    tablasAlternativas: {
-                        catalogo: ['Catálogo de Productos', 'Catalogo de Productos', 'Productos', 'CATALOGO'],
-                        precios: ['Precios por Cliente', 'Precios Cliente', 'PRECIOS', 'Precios']
-                    }
-                },
-                reintentos: {
-                    max: 3,
-                    delayBase: 1000
+                    baseId: 'appZR5HyyKvRk6rhJ'
                 }
             };
             
@@ -3901,397 +3892,400 @@
                 preciosCliente: {},
                 productoSeleccionado: null,
                 productosAgregados: [],
-                clienteActual: null,
-                intentos: {
-                    firebase: 0,
-                    catalogo: 0,
-                    precios: 0
+                estructuraDetectada: {
+                    catalogo: { tabla: null, campos: {} },
+                    precios: { tabla: null, campos: {} }
                 }
             };
             
             // ==========================================
-            // AUTO-REPARACIÓN: ESPERAR FIREBASE
+            // 1. DETECTAR TODAS LAS TABLAS DISPONIBLES
             // ==========================================
             
-            function esperarFirebaseConReintentos() {
-                state.intentos.firebase++;
+            async function detectarTablasDisponibles() {
+                console.log('🔍 Detectando tablas en Airtable...');
                 
-                if (state.intentos.firebase > 30) {
-                    console.error('❌ Firebase no disponible después de 30 intentos');
-                    // SOLUCIÓN: Intentar cargar Firebase manualmente
-                    cargarFirebaseManual();
-                    return;
-                }
-                
-                if (typeof firebase !== 'undefined' && firebase.firestore && window.db) {
-                    console.log('✅ Firebase listo');
-                    state.intentos.firebase = 0;
-                    iniciarSistema();
-                } else {
-                    console.log(`⏳ Esperando Firebase... (${state.intentos.firebase}/30)`);
-                    setTimeout(esperarFirebaseConReintentos, 500);
-                }
-            }
-            
-            function cargarFirebaseManual() {
-                console.log('🔧 Intentando cargar Firebase manualmente...');
-                // Si Firebase no está disponible, el sistema continúa sin él
-                // Los datos se guardan en memoria local
-                window.db = {
-                    collection: function() {
-                        console.warn('⚠️ Usando almacenamiento local (Firebase no disponible)');
-                        return {
-                            add: function(data) {
-                                console.log('💾 Guardado local:', data);
-                                return Promise.resolve({ id: Date.now().toString() });
-                            },
-                            doc: function() {
-                                return {
-                                    get: function() {
-                                        return Promise.resolve({ exists: false });
-                                    }
-                                };
-                            }
-                        };
+                try {
+                    // Intentar obtener metadata de la base
+                    const url = `https://api.airtable.com/v0/meta/bases/${CONFIG.airtable.baseId}/tables`;
+                    
+                    const response = await fetch(url, {
+                        headers: { 'Authorization': `Bearer ${CONFIG.airtable.token}` }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log('✅ Tablas encontradas:', data.tables.map(t => t.name).join(', '));
+                        return data.tables;
                     }
-                };
-                iniciarSistema();
+                } catch (error) {
+                    console.log('⚠️ No se pudo obtener metadata, probando tablas manualmente...');
+                }
+                
+                // Si falla, probar tablas comunes
+                return await probarTablasComunes();
             }
             
-            // ==========================================
-            // AUTO-REPARACIÓN: CARGAR CATÁLOGO
-            // ==========================================
-            
-            async function cargarCatalogoConReintentos() {
-                state.intentos.catalogo++;
+            async function probarTablasComunes() {
+                const tablasComunes = [
+                    'Catálogo de Productos', 'Catalogo de Productos', 'Productos', 'PRODUCTOS',
+                    'Catálogo', 'Catalogo', 'CATALOGO', 'Items', 'ITEMS',
+                    'Precios por Cliente', 'Precios Cliente', 'Precios', 'PRECIOS',
+                    'Gestión de Clientes', 'Clientes', 'CLIENTES'
+                ];
                 
-                for (const nombreTabla of CONFIG.airtable.tablasAlternativas.catalogo) {
+                const tablasEncontradas = [];
+                
+                for (const nombreTabla of tablasComunes) {
                     try {
-                        console.log(`📦 Intentando cargar catálogo desde: "${nombreTabla}"`);
-                        
-                        const url = `https://api.airtable.com/v0/${CONFIG.airtable.baseId}/${encodeURIComponent(nombreTabla)}`;
+                        const url = `https://api.airtable.com/v0/${CONFIG.airtable.baseId}/${encodeURIComponent(nombreTabla)}?maxRecords=1`;
                         
                         const response = await fetch(url, {
-                            method: 'GET',
-                            headers: {
-                                'Authorization': `Bearer ${CONFIG.airtable.token}`,
-                                'Content-Type': 'application/json'
-                            },
-                            signal: AbortSignal.timeout(10000) // Timeout de 10 segundos
+                            headers: { 'Authorization': `Bearer ${CONFIG.airtable.token}` },
+                            signal: AbortSignal.timeout(5000)
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            tablasEncontradas.push({
+                                name: nombreTabla,
+                                fields: data.records[0] ? Object.keys(data.records[0].fields) : []
+                            });
+                            console.log(`✅ Tabla encontrada: "${nombreTabla}" con campos:`, data.records[0] ? Object.keys(data.records[0].fields).join(', ') : 'vacía');
+                        }
+                    } catch (e) {
+                        // Tabla no existe o timeout
+                    }
+                }
+                
+                return tablasEncontradas;
+            }
+            
+            // ==========================================
+            // 2. IDENTIFICAR TABLA DE CATÁLOGO
+            // ==========================================
+            
+            async function identificarTablaCatalogo(tablas) {
+                console.log('🔍 Identificando tabla de catálogo...');
+                
+                // Buscar tabla que tenga campos típicos de productos
+                const palabrasClaveCatalogo = ['codigo', 'código', 'code', 'producto', 'nombre', 'descripcion', 'item'];
+                
+                for (const tabla of tablas) {
+                    const camposLower = tabla.fields.map(f => f.toLowerCase());
+                    
+                    // Contar coincidencias
+                    const coincidencias = palabrasClaveCatalogo.filter(palabra =>
+                        camposLower.some(campo => campo.includes(palabra))
+                    ).length;
+                    
+                    if (coincidencias >= 2) {
+                        console.log(`✅ Tabla de catálogo identificada: "${tabla.name}"`);
+                        
+                        // Detectar campos
+                        const campos = detectarCamposCatalogo(tabla.fields);
+                        
+                        // Cargar datos
+                        const productos = await cargarDatosTabla(tabla.name);
+                        
+                        if (productos.length > 0) {
+                            state.estructuraDetectada.catalogo = {
+                                tabla: tabla.name,
+                                campos: campos
+                            };
+                            
+                            state.catalogoProductos = productos.map(p => ({
+                                codigo: extraerValor(p.fields, campos.codigo) || 'SIN-CODIGO',
+                                nombre: extraerValor(p.fields, campos.nombre) || 'Sin nombre',
+                                unidad: extraerValor(p.fields, campos.unidad) || 'Unidad'
+                            }));
+                            
+                            console.log(`✅ ${state.catalogoProductos.length} productos cargados`);
+                            console.log('📋 Primeros 3 productos:', state.catalogoProductos.slice(0, 3));
+                            
+                            return true;
+                        }
+                    }
+                }
+                
+                console.error('❌ No se pudo identificar tabla de catálogo');
+                return false;
+            }
+            
+            function detectarCamposCatalogo(camposDisponibles) {
+                const mapeo = {
+                    codigo: detectarCampo(camposDisponibles, ['código', 'codigo', 'code', 'id', 'sku', 'ref', 'referencia']),
+                    nombre: detectarCampo(camposDisponibles, ['nombre', 'name', 'descripción', 'descripcion', 'producto', 'item', 'description']),
+                    unidad: detectarCampo(camposDisponibles, ['unidad', 'unit', 'um', 'medida', 'uom'])
+                };
+                
+                console.log('🔧 Campos detectados:', mapeo);
+                return mapeo;
+            }
+            
+            function detectarCampo(camposDisponibles, palabrasClave) {
+                for (const palabra of palabrasClave) {
+                    const encontrado = camposDisponibles.find(campo =>
+                        campo.toLowerCase().includes(palabra.toLowerCase())
+                    );
+                    if (encontrado) return encontrado;
+                }
+                return camposDisponibles[0]; // Fallback: usar primer campo
+            }
+            
+            function extraerValor(fields, nombreCampo) {
+                if (!nombreCampo || !fields) return null;
+                const valor = fields[nombreCampo];
+                return valor ? String(valor).trim() : null;
+            }
+            
+            // ==========================================
+            // 3. IDENTIFICAR TABLA DE PRECIOS
+            // ==========================================
+            
+            async function identificarTablaPrecios(tablas, nombreCliente) {
+                console.log(`🔍 Buscando precios para: ${nombreCliente}`);
+                
+                const palabrasClavePrecios = ['precio', 'price', 'valor', 'cliente', 'client'];
+                
+                for (const tabla of tablas) {
+                    const camposLower = tabla.fields.map(f => f.toLowerCase());
+                    
+                    const coincidencias = palabrasClavePrecios.filter(palabra =>
+                        camposLower.some(campo => campo.includes(palabra))
+                    ).length;
+                    
+                    if (coincidencias >= 2) {
+                        console.log(`🔍 Probando tabla de precios: "${tabla.name}"`);
+                        
+                        const campos = detectarCamposPrecios(tabla.fields);
+                        
+                        // Intentar cargar precios con múltiples filtros
+                        const precios = await cargarPreciosConFiltros(tabla.name, campos, nombreCliente);
+                        
+                        if (precios && Object.keys(precios).length > 0) {
+                            state.estructuraDetectada.precios = {
+                                tabla: tabla.name,
+                                campos: campos
+                            };
+                            
+                            state.preciosCliente = precios;
+                            
+                            console.log(`✅ ${Object.keys(precios).length} precios cargados desde "${tabla.name}"`);
+                            console.log('💰 Primeros 3 precios:', Object.entries(precios).slice(0, 3));
+                            
+                            return true;
+                        }
+                    }
+                }
+                
+                console.warn('⚠️ No se encontraron precios específicos, usando precio 0 para todos');
+                // SOLUCIÓN: Asignar precio 0 a todos
+                state.catalogoProductos.forEach(p => {
+                    state.preciosCliente[p.codigo] = 0;
+                });
+                return false;
+            }
+            
+            function detectarCamposPrecios(camposDisponibles) {
+                return {
+                    cliente: detectarCampo(camposDisponibles, ['cliente', 'client', 'nombre cliente', 'empresa', 'company']),
+                    codigo: detectarCampo(camposDisponibles, ['id', 'código', 'codigo', 'producto', 'item', 'sku']),
+                    precio: detectarCampo(camposDisponibles, ['precio', 'price', 'valor', 'value', 'acordado', 'unitario'])
+                };
+            }
+            
+            async function cargarPreciosConFiltros(nombreTabla, campos, nombreCliente) {
+                const precios = {};
+                
+                // Estrategia 1: Filtrar por nombre de cliente
+                const formulas = [
+                    `SEARCH("${nombreCliente}", {${campos.cliente}})`,
+                    `{${campos.cliente}} = "${nombreCliente}"`,
+                    `LOWER({${campos.cliente}}) = LOWER("${nombreCliente}")`,
+                    `FIND("${nombreCliente}", {${campos.cliente}})`,
+                ];
+                
+                for (const formula of formulas) {
+                    try {
+                        const url = `https://api.airtable.com/v0/${CONFIG.airtable.baseId}/${encodeURIComponent(nombreTabla)}?filterByFormula=${encodeURIComponent(formula)}`;
+                        
+                        const response = await fetch(url, {
+                            headers: { 'Authorization': `Bearer ${CONFIG.airtable.token}` },
+                            signal: AbortSignal.timeout(8000)
                         });
                         
                         if (response.ok) {
                             const data = await response.json();
                             
-                            if (data.records && Array.isArray(data.records) && data.records.length > 0) {
-                                state.catalogoProductos = procesarCatalogo(data.records);
-                                console.log(`✅ Catálogo cargado desde "${nombreTabla}": ${state.catalogoProductos.length} productos`);
-                                state.intentos.catalogo = 0;
-                                return true;
-                            }
-                        }
-                        
-                    } catch (error) {
-                        console.warn(`⚠️ Error con "${nombreTabla}":`, error.message);
-                        // Continúa con la siguiente tabla alternativa
-                    }
-                }
-                
-                // SOLUCIÓN: Si falló todo, reintentar o usar catálogo de respaldo
-                if (state.intentos.catalogo < CONFIG.reintentos.max) {
-                    const delay = CONFIG.reintentos.delayBase * state.intentos.catalogo;
-                    console.log(`🔄 Reintentando en ${delay}ms... (${state.intentos.catalogo}/${CONFIG.reintentos.max})`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                    return cargarCatalogoConReintentos();
-                } else {
-                    console.error('❌ No se pudo cargar el catálogo después de todos los intentos');
-                    usarCatalogoRespaldo();
-                    return false;
-                }
-            }
-            
-            function procesarCatalogo(records) {
-                // SOLUCIÓN: Múltiples nombres de campos posibles
-                const camposPosibles = {
-                    codigo: ['Código', 'Codigo', 'CODE', 'Id', 'ID', 'CODIGO'],
-                    nombre: ['Nombre', 'NOMBRE', 'Descripción', 'Descripcion', 'Name', 'NOMBRE_PRODUCTO'],
-                    unidad: ['Unidad de Medida', 'Unidad', 'UNIDAD', 'UM', 'Unit']
-                };
-                
-                return records.map(record => {
-                    const producto = {
-                        codigo: '',
-                        nombre: '',
-                        unidad: ''
-                    };
-                    
-                    // Buscar código en campos posibles
-                    for (const campo of camposPosibles.codigo) {
-                        if (record.fields[campo]) {
-                            producto.codigo = String(record.fields[campo]).trim();
-                            break;
-                        }
-                    }
-                    
-                    // Buscar nombre en campos posibles
-                    for (const campo of camposPosibles.nombre) {
-                        if (record.fields[campo]) {
-                            producto.nombre = String(record.fields[campo]).trim();
-                            break;
-                        }
-                    }
-                    
-                    // Buscar unidad en campos posibles
-                    for (const campo of camposPosibles.unidad) {
-                        if (record.fields[campo]) {
-                            producto.unidad = String(record.fields[campo]).trim();
-                            break;
-                        }
-                    }
-                    
-                    // SOLUCIÓN: Si no hay unidad, usar "Unidad" por defecto
-                    if (!producto.unidad) {
-                        producto.unidad = 'Unidad';
-                    }
-                    
-                    return producto;
-                    
-                }).filter(p => p.codigo && p.nombre); // Solo productos válidos
-            }
-            
-            function usarCatalogoRespaldo() {
-                console.log('🔧 Usando catálogo de respaldo vacío');
-                state.catalogoProductos = [];
-                mostrarMensaje('No se pudo cargar el catálogo. Contacta al administrador.', 'error');
-            }
-            
-            // ==========================================
-            // AUTO-REPARACIÓN: CARGAR PRECIOS
-            // ==========================================
-            
-            async function cargarPreciosConReintentos(nombreCliente) {
-                state.intentos.precios++;
-                state.clienteActual = nombreCliente;
-                
-                // SOLUCIÓN: Limpiar nombre del cliente
-                const nombreLimpio = limpiarNombreCliente(nombreCliente);
-                
-                for (const nombreTabla of CONFIG.airtable.tablasAlternativas.precios) {
-                    try {
-                        console.log(`💰 Intentando cargar precios desde: "${nombreTabla}"`);
-                        
-                        // SOLUCIÓN: Múltiples formatos de búsqueda
-                        const formulas = [
-                            `SEARCH("${nombreLimpio}", {Nombre del cliente})`,
-                            `SEARCH("${nombreLimpio}", {Cliente})`,
-                            `SEARCH("${nombreLimpio}", {CLIENTE})`,
-                            `{Nombre del cliente} = "${nombreLimpio}"`,
-                            `{Cliente} = "${nombreLimpio}"`
-                        ];
-                        
-                        for (const formula of formulas) {
-                            try {
-                                const url = `https://api.airtable.com/v0/${CONFIG.airtable.baseId}/${encodeURIComponent(nombreTabla)}?filterByFormula=${encodeURIComponent(formula)}`;
+                            if (data.records && data.records.length > 0) {
+                                console.log(`✅ Encontrados ${data.records.length} registros con fórmula: ${formula}`);
                                 
-                                const response = await fetch(url, {
-                                    method: 'GET',
-                                    headers: {
-                                        'Authorization': `Bearer ${CONFIG.airtable.token}`,
-                                        'Content-Type': 'application/json'
-                                    },
-                                    signal: AbortSignal.timeout(10000)
+                                data.records.forEach(record => {
+                                    const codigo = extraerValor(record.fields, campos.codigo);
+                                    const precioStr = extraerValor(record.fields, campos.precio);
+                                    const precio = parseFloat(precioStr);
+                                    
+                                    if (codigo && !isNaN(precio) && precio > 0) {
+                                        precios[codigo] = precio;
+                                    }
                                 });
                                 
-                                if (response.ok) {
-                                    const data = await response.json();
-                                    
-                                    if (data.records && data.records.length > 0) {
-                                        state.preciosCliente = procesarPrecios(data.records);
-                                        const count = Object.keys(state.preciosCliente).length;
-                                        console.log(`✅ ${count} precios cargados desde "${nombreTabla}"`);
-                                        state.intentos.precios = 0;
-                                        habilitarBuscador();
-                                        mostrarMensaje(`${count} productos disponibles`, 'success');
-                                        setTimeout(ocultarMensaje, 3000);
-                                        return true;
-                                    }
+                                if (Object.keys(precios).length > 0) {
+                                    return precios;
                                 }
-                                
-                            } catch (e) {
-                                // Continúa con la siguiente fórmula
                             }
                         }
+                    } catch (e) {
+                        console.warn(`⚠️ Fórmula falló: ${formula.substring(0, 50)}...`);
+                    }
+                }
+                
+                // Estrategia 2: Cargar toda la tabla y filtrar manualmente
+                console.log('🔄 Cargando tabla completa y filtrando manualmente...');
+                const todos = await cargarDatosTabla(nombreTabla);
+                
+                todos.forEach(record => {
+                    const clienteRec = extraerValor(record.fields, campos.cliente);
+                    
+                    if (clienteRec && clienteRec.toLowerCase().includes(nombreCliente.toLowerCase())) {
+                        const codigo = extraerValor(record.fields, campos.codigo);
+                        const precioStr = extraerValor(record.fields, campos.precio);
+                        const precio = parseFloat(precioStr);
                         
-                    } catch (error) {
-                        console.warn(`⚠️ Error con tabla "${nombreTabla}":`, error.message);
-                    }
-                }
-                
-                // SOLUCIÓN: Si no encontró precios, mostrar todos los productos sin filtrar
-                if (state.intentos.precios < CONFIG.reintentos.max) {
-                    const delay = CONFIG.reintentos.delayBase * state.intentos.precios;
-                    console.log(`🔄 Reintentando precios en ${delay}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                    return cargarPreciosConReintentos(nombreCliente);
-                } else {
-                    console.warn('⚠️ No se encontraron precios, mostrando todos los productos');
-                    usarPreciosRespaldo();
-                    return false;
-                }
-            }
-            
-            function procesarPrecios(records) {
-                // SOLUCIÓN: Múltiples nombres de campos posibles
-                const camposPosibles = {
-                    codigo: ['Id', 'ID', 'Código', 'Codigo', 'CODE', 'PRODUCTO_ID'],
-                    precio: ['Precio acordado', 'Precio', 'PRECIO', 'Price', 'VALOR', 'Valor']
-                };
-                
-                const precios = {};
-                
-                records.forEach(record => {
-                    let codigo = '';
-                    let precio = 0;
-                    
-                    // Buscar código
-                    for (const campo of camposPosibles.codigo) {
-                        if (record.fields[campo]) {
-                            codigo = String(record.fields[campo]).trim();
-                            break;
+                        if (codigo && !isNaN(precio) && precio > 0) {
+                            precios[codigo] = precio;
                         }
-                    }
-                    
-                    // Buscar precio
-                    for (const campo of camposPosibles.precio) {
-                        if (record.fields[campo] !== undefined && record.fields[campo] !== null) {
-                            const valorPrecio = parseFloat(record.fields[campo]);
-                            if (!isNaN(valorPrecio) && valorPrecio > 0) {
-                                precio = valorPrecio;
-                                break;
-                            }
-                        }
-                    }
-                    
-                    if (codigo && precio > 0) {
-                        precios[codigo] = precio;
                     }
                 });
                 
                 return precios;
             }
             
-            function limpiarNombreCliente(nombre) {
-                // SOLUCIÓN: Limpiar caracteres especiales y espacios extras
-                return nombre
-                    .replace(/['"]/g, '') // Quitar comillas
-                    .replace(/\s+/g, ' ') // Normalizar espacios
-                    .trim();
-            }
+            // ==========================================
+            // 4. CARGAR DATOS DE TABLA
+            // ==========================================
             
-            function usarPreciosRespaldo() {
-                // SOLUCIÓN: Asignar precio por defecto a todos los productos
-                console.log('🔧 Usando precios de respaldo (precio = 0)');
-                state.preciosCliente = {};
-                state.catalogoProductos.forEach(p => {
-                    state.preciosCliente[p.codigo] = 0;
-                });
-                habilitarBuscador();
-                mostrarMensaje('⚠️ Precios no disponibles. Los productos se agregarán con precio $0', 'info');
+            async function cargarDatosTabla(nombreTabla) {
+                try {
+                    const url = `https://api.airtable.com/v0/${CONFIG.airtable.baseId}/${encodeURIComponent(nombreTabla)}`;
+                    
+                    const response = await fetch(url, {
+                        headers: { 'Authorization': `Bearer ${CONFIG.airtable.token}` },
+                        signal: AbortSignal.timeout(15000)
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        return data.records || [];
+                    }
+                } catch (error) {
+                    console.error(`Error cargando "${nombreTabla}":`, error.message);
+                }
+                
+                return [];
             }
             
             // ==========================================
-            // CREAR INTERFAZ CON AUTO-REPARACIÓN
+            // 5. INTERFAZ Y LÓGICA
             // ==========================================
             
-            function crearInterfazConReintentos(intentos = 0) {
-                if (intentos > 10) {
-                    console.error('❌ No se pudo crear la interfaz');
-                    return;
-                }
-                
-                if (document.getElementById('sistema-productos-remision')) {
-                    console.log('ℹ️ Interfaz ya existe');
-                    return;
-                }
-                
-                // SOLUCIÓN: Buscar en múltiples contenedores posibles
-                const posiblesContenedores = [
+            function crearInterfaz() {
+                const contenedores = [
                     document.getElementById('remisionesContent'),
                     document.querySelector('[id*="remision"]'),
-                    document.querySelector('[id*="Remision"]'),
                     document.querySelector('.tab-content'),
-                    document.querySelector('main'),
-                    document.querySelector('.main-content'),
                     document.body
                 ];
                 
-                const contenedor = posiblesContenedores.find(el => el !== null);
-                
+                const contenedor = contenedores.find(c => c);
                 if (!contenedor) {
-                    console.log(`⏳ Contenedor no encontrado, reintentando... (${intentos + 1}/10)`);
-                    setTimeout(() => crearInterfazConReintentos(intentos + 1), 1000);
+                    setTimeout(crearInterfaz, 1000);
                     return;
                 }
                 
-                console.log(`✅ Contenedor encontrado: ${contenedor.id || contenedor.className || 'body'}`);
+                if (document.getElementById('sistema-prod-auto')) return;
                 
-                const html = `
-                    <div id="sistema-productos-remision" style="background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%); padding: 24px; border-radius: 12px; margin: 20px 0; border: 2px solid #e5e7eb; box-shadow: 0 4px 6px rgba(0,0,0,0.07);">
-                        <h3 style="margin: 0 0 20px 0; color: #1f2937; font-size: 20px; font-weight: 700;">
-                            📦 Agregar Productos a la Remisión
-                        </h3>
-                        
-                        <div style="margin-bottom: 16px;">
-                            <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151;">
-                                Buscar Producto:
-                            </label>
-                            <div style="position: relative;">
-                                <input 
-                                    type="text" 
-                                    id="input-buscar-prod-rem"
-                                    placeholder="Selecciona primero un cliente..."
-                                    disabled
-                                    autocomplete="off"
-                                    style="width: 100%; padding: 12px 16px; font-size: 15px; border: 2px solid #d1d5db; border-radius: 8px; background: #f3f4f6; outline: none; transition: all 0.2s;"
-                                />
-                                <div id="dropdown-prods-rem" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 2px solid #3b82f6; border-top: none; border-radius: 0 0 8px 8px; max-height: 320px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></div>
-                            </div>
-                        </div>
-                        
-                        <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
-                            <div>
-                                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151;">
-                                    Cantidad:
-                                </label>
-                                <input type="number" id="input-cant-rem" value="1" min="1" style="width: 100px; padding: 10px 12px; text-align: center; border: 2px solid #d1d5db; border-radius: 6px; font-size: 16px; font-weight: 600; outline: none;"/>
-                            </div>
-                            <button id="btn-add-prod-rem" disabled style="background: #10b981; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: not-allowed; opacity: 0.5; outline: none;">
-                                ➕ Agregar
+                contenedor.insertAdjacentHTML('afterbegin', `
+                    <div id="sistema-prod-auto" style="background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%); padding: 24px; border-radius: 12px; margin: 20px 0; border: 2px solid #86efac; box-shadow: 0 4px 6px rgba(0,0,0,0.07);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <h3 style="margin: 0; color: #1f2937; font-size: 20px; font-weight: 700;">
+                                🧠 Sistema Inteligente de Productos
+                            </h3>
+                            <button onclick="window.__mostrarInfo()" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
+                                ℹ️ Ver Info
                             </button>
                         </div>
                         
-                        <div id="msg-prods-rem" style="margin-top: 12px; padding: 12px; border-radius: 6px; display: none; font-weight: 500;"></div>
+                        <div id="info-deteccion" style="background: #dbeafe; border: 2px solid #3b82f6; border-radius: 8px; padding: 12px; margin-bottom: 16px; display: none; font-size: 14px;">
+                            <strong>📊 Estructura Detectada:</strong>
+                            <div id="info-estructura" style="margin-top: 8px; font-family: monospace; font-size: 12px;"></div>
+                        </div>
+                        
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151;">Buscar Producto:</label>
+                            <input type="text" id="input-search-auto" placeholder="Primero selecciona un cliente..." disabled autocomplete="off" style="width: 100%; padding: 12px; border: 2px solid #d1d5db; border-radius: 8px; background: #f3f4f6; outline: none;"/>
+                            <div id="dropdown-auto" style="display: none; position: absolute; background: white; border: 2px solid #3b82f6; border-radius: 0 0 8px 8px; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <div>
+                                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151;">Cantidad:</label>
+                                <input type="number" id="input-qty-auto" value="1" min="1" style="width: 100px; padding: 10px; text-align: center; border: 2px solid #d1d5db; border-radius: 6px; font-weight: 600;"/>
+                            </div>
+                            <button id="btn-add-auto" disabled style="align-self: flex-end; background: #10b981; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: not-allowed; opacity: 0.5;">➕ Agregar</button>
+                        </div>
+                        
+                        <div id="msg-auto" style="margin-top: 12px; padding: 12px; border-radius: 6px; display: none; font-weight: 500;"></div>
                     </div>
                     
-                    <div id="tabla-prods-rem-container"></div>
-                `;
-                
-                contenedor.insertAdjacentHTML('afterbegin', html);
-                console.log('✅ Interfaz creada');
+                    <div id="tabla-auto-container"></div>
+                `);
                 
                 conectarEventos();
+                console.log('✅ Interfaz creada');
             }
             
-            // ==========================================
-            // CONECTAR EVENTOS
-            // ==========================================
+            window.__mostrarInfo = function() {
+                const info = document.getElementById('info-deteccion');
+                const infoEstructura = document.getElementById('info-estructura');
+                
+                if (info.style.display === 'none') {
+                    let html = '';
+                    
+                    if (state.estructuraDetectada.catalogo.tabla) {
+                        html += `<div style="margin-bottom: 8px;">
+                            <strong>📦 Catálogo:</strong> ${state.estructuraDetectada.catalogo.tabla}<br>
+                            - Código: ${state.estructuraDetectada.catalogo.campos.codigo}<br>
+                            - Nombre: ${state.estructuraDetectada.catalogo.campos.nombre}<br>
+                            - Unidad: ${state.estructuraDetectada.catalogo.campos.unidad}<br>
+                            - Productos: ${state.catalogoProductos.length}
+                        </div>`;
+                    }
+                    
+                    if (state.estructuraDetectada.precios.tabla) {
+                        html += `<div>
+                            <strong>💰 Precios:</strong> ${state.estructuraDetectada.precios.tabla}<br>
+                            - Cliente: ${state.estructuraDetectada.precios.campos.cliente}<br>
+                            - Código: ${state.estructuraDetectada.precios.campos.codigo}<br>
+                            - Precio: ${state.estructuraDetectada.precios.campos.precio}<br>
+                            - Con precio: ${Object.keys(state.preciosCliente).length}
+                        </div>`;
+                    }
+                    
+                    infoEstructura.innerHTML = html || 'Aún no se ha detectado la estructura';
+                    info.style.display = 'block';
+                } else {
+                    info.style.display = 'none';
+                }
+            };
             
             function conectarEventos() {
-                const input = document.getElementById('input-buscar-prod-rem');
-                const btn = document.getElementById('btn-add-prod-rem');
+                const input = document.getElementById('input-search-auto');
+                const btn = document.getElementById('btn-add-auto');
                 
                 if (input) {
-                    input.oninput = (e) => buscarProductos(e.target.value);
+                    input.oninput = (e) => buscar(e.target.value);
                     input.onfocus = function() {
                         if (!this.disabled) {
                             this.style.borderColor = '#3b82f6';
@@ -4300,76 +4294,62 @@
                     };
                     input.onblur = function() {
                         this.style.borderColor = '#d1d5db';
-                        if (this.disabled) this.style.background = '#f3f4f6';
                         setTimeout(() => {
-                            const dd = document.getElementById('dropdown-prods-rem');
+                            const dd = document.getElementById('dropdown-auto');
                             if (dd) dd.style.display = 'none';
                         }, 200);
                     };
                 }
                 
-                if (btn) {
-                    btn.onclick = agregarProducto;
-                }
+                if (btn) btn.onclick = agregar;
                 
-                setTimeout(conectarSelectorCliente, 1000);
+                setTimeout(conectarSelector, 1000);
             }
             
-            function conectarSelectorCliente() {
-                // SOLUCIÓN: Buscar todos los posibles selectores
-                const todosLosElementos = document.querySelectorAll('select, input[type="text"], input[type="search"]');
-                let encontrado = false;
-                
-                todosLosElementos.forEach(el => {
+            function conectarSelector() {
+                document.querySelectorAll('select, input').forEach(el => {
                     const id = (el.id || '').toLowerCase();
                     const name = (el.name || '').toLowerCase();
-                    const placeholder = (el.placeholder || '').toLowerCase();
-                    const label = encontrarLabelPara(el);
                     
-                    if (id.includes('cliente') || name.includes('cliente') || 
-                        placeholder.includes('cliente') || label.includes('cliente')) {
-                        
-                        el.addEventListener('change', function() {
-                            let nombre = '';
-                            if (this.tagName === 'SELECT') {
-                                const opt = this.options[this.selectedIndex];
-                                nombre = opt ? opt.text : '';
-                            } else {
-                                nombre = this.value;
-                            }
+                    if (id.includes('cliente') || name.includes('cliente')) {
+                        el.addEventListener('change', async function() {
+                            let nombre = this.tagName === 'SELECT' ?
+                                this.options[this.selectedIndex]?.text :
+                                this.value;
                             
                             if (nombre) {
-                                nombre = nombre.split('-')[0].split('|')[0].trim();
+                                nombre = nombre.split('-')[0].trim();
                                 if (nombre.length > 2) {
-                                    console.log(`👤 Cliente: ${nombre}`);
+                                    console.log(`👤 Cliente seleccionado: ${nombre}`);
                                     state.productosAgregados = [];
                                     actualizarTabla();
-                                    cargarPreciosConReintentos(nombre);
+                                    
+                                    mostrarMsg('Detectando estructura...', 'info');
+                                    
+                                    const tablas = await detectarTablasDisponibles();
+                                    await identificarTablaPrecios(tablas, nombre);
+                                    
+                                    const input = document.getElementById('input-search-auto');
+                                    if (input) {
+                                        input.disabled = false;
+                                        input.placeholder = 'Escribe código o nombre...';
+                                        input.style.background = 'white';
+                                        input.focus();
+                                    }
+                                    
+                                    const count = Object.keys(state.preciosCliente).length;
+                                    mostrarMsg(`✅ ${count} productos disponibles`, 'success');
+                                    setTimeout(ocultarMsg, 3000);
                                 }
                             }
                         });
-                        
-                        console.log(`✅ Conectado: ${el.id || el.name || 'elemento sin nombre'}`);
-                        encontrado = true;
+                        console.log(`✅ Conectado: ${el.id || el.name}`);
                     }
                 });
-                
-                if (!encontrado) {
-                    console.warn('⚠️ No se encontró selector de cliente');
-                }
             }
             
-            function encontrarLabelPara(elemento) {
-                const label = documento.querySelector(`label[for="${elemento.id}"]`);
-                return label ? label.textContent.toLowerCase() : '';
-            }
-            
-            // ==========================================
-            // BUSCAR Y SELECCIONAR PRODUCTOS
-            // ==========================================
-            
-            function buscarProductos(texto) {
-                const dd = document.getElementById('dropdown-prods-rem');
+            function buscar(texto) {
+                const dd = document.getElementById('dropdown-auto');
                 if (!dd) return;
                 
                 if (!texto || texto.length < 2) {
@@ -4379,142 +4359,113 @@
                 
                 const lower = texto.toLowerCase();
                 const conPrecio = state.catalogoProductos.filter(p => state.preciosCliente[p.codigo] !== undefined);
-                const resultados = conPrecio.filter(p =>
+                const res = conPrecio.filter(p =>
                     p.codigo.toLowerCase().includes(lower) ||
                     p.nombre.toLowerCase().includes(lower)
                 );
                 
-                if (resultados.length === 0) {
+                if (res.length === 0) {
                     dd.innerHTML = '<div style="padding: 16px; text-align: center; color: #6b7280;">Sin resultados</div>';
-                    dd.style.display = 'block';
-                    return;
-                }
-                
-                dd.innerHTML = resultados.slice(0, 10).map(p => {
-                    const precio = state.preciosCliente[p.codigo] || 0;
-                    const precioStr = new Intl.NumberFormat('es-CO', {
-                        style: 'currency',
-                        currency: 'COP',
-                        minimumFractionDigits: 0
-                    }).format(precio);
-                    
-                    // SOLUCIÓN: Escapar caracteres especiales
-                    const nombreSeguro = p.nombre.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/`/g, '\\`');
-                    const unidadSegura = p.unidad.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/`/g, '\\`');
-                    
-                    return `
-                        <div onclick="window.__selProd('${p.codigo}', '${nombreSeguro}', ${precio}, '${unidadSegura}')"
-                             style="padding: 12px; cursor: pointer; border-bottom: 1px solid #e5e7eb;"
-                             onmouseover="this.style.background='#f3f4f6'"
-                             onmouseout="this.style.background='white'">
-                            <div style="font-weight: 600; color: #1f2937;">${p.nombre}</div>
-                            <div style="font-size: 13px; color: #6b7280; margin-top: 4px;">
-                                <span style="background: #e5e7eb; padding: 2px 8px; border-radius: 3px; font-family: monospace;">${p.codigo}</span>
-                                <span> • ${p.unidad} • </span>
-                                <span style="color: #059669; font-weight: 700;">${precioStr}</span>
+                } else {
+                    dd.innerHTML = res.slice(0, 10).map(p => {
+                        const precio = state.preciosCliente[p.codigo] || 0;
+                        return `
+                            <div onclick="window.__sel('${p.codigo}', '${p.nombre.replace(/'/g, "\\'")}', ${precio}, '${p.unidad}')"
+                                 style="padding: 12px; cursor: pointer; border-bottom: 1px solid #e5e7eb;"
+                                 onmouseover="this.style.background='#f3f4f6'"
+                                 onmouseout="this.style.background='white'">
+                                <div style="font-weight: 600;">${p.nombre}</div>
+                                <div style="font-size: 13px; color: #6b7280; margin-top: 4px;">
+                                    <span style="background: #e5e7eb; padding: 2px 8px; border-radius: 3px; font-family: monospace;">${p.codigo}</span>
+                                    <span> • ${p.unidad} • </span>
+                                    <span style="color: #059669; font-weight: 700;">$${precio.toLocaleString('es-CO')}</span>
+                                </div>
                             </div>
-                        </div>
-                    `;
-                }).join('');
+                        `;
+                    }).join('');
+                }
                 
                 dd.style.display = 'block';
             }
             
-            window.__selProd = function(codigo, nombre, precio, unidad) {
+            window.__sel = function(codigo, nombre, precio, unidad) {
                 state.productoSeleccionado = { codigo, nombre, precio, unidad };
-                const input = document.getElementById('input-buscar-prod-rem');
-                if (input) input.value = `${nombre} (${codigo})`;
-                const dd = document.getElementById('dropdown-prods-rem');
-                if (dd) dd.style.display = 'none';
-                habilitarBotonAgregar();
-                const cant = document.getElementById('input-cant-rem');
-                if (cant) cant.focus();
+                document.getElementById('input-search-auto').value = `${nombre} (${codigo})`;
+                document.getElementById('dropdown-auto').style.display = 'none';
+                
+                const btn = document.getElementById('btn-add-auto');
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+                
+                document.getElementById('input-qty-auto').focus();
             };
             
-            // ==========================================
-            // AGREGAR PRODUCTO
-            // ==========================================
-            
-            function agregarProducto() {
+            function agregar() {
                 if (!state.productoSeleccionado) return;
                 
-                const cant = parseInt(document.getElementById('input-cant-rem').value) || 1;
-                
-                // SOLUCIÓN: Validar cantidad
-                if (cant < 1 || isNaN(cant)) {
-                    mostrarMensaje('Cantidad inválida', 'error');
-                    return;
-                }
+                const qty = parseInt(document.getElementById('input-qty-auto').value) || 1;
                 
                 const existe = state.productosAgregados.find(p => p.codigo === state.productoSeleccionado.codigo);
                 if (existe) {
-                    existe.cantidad += cant;
+                    existe.cantidad += qty;
                 } else {
-                    state.productosAgregados.push({ ...state.productoSeleccionado, cantidad: cant });
+                    state.productosAgregados.push({ ...state.productoSeleccionado, cantidad: qty });
                 }
                 
-                limpiar();
-                actualizarTabla();
-                mostrarMensaje('✅ Producto agregado', 'success');
-                setTimeout(ocultarMensaje, 2000);
-            }
-            
-            function limpiar() {
-                const input = document.getElementById('input-buscar-prod-rem');
-                if (input) {
-                    input.value = '';
-                    input.focus();
-                }
-                const cant = document.getElementById('input-cant-rem');
-                if (cant) cant.value = '1';
+                document.getElementById('input-search-auto').value = '';
+                document.getElementById('input-qty-auto').value = '1';
                 state.productoSeleccionado = null;
-                deshabilitarBotonAgregar();
+                
+                const btn = document.getElementById('btn-add-auto');
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+                
+                actualizarTabla();
+                mostrarMsg('✅ Agregado', 'success');
+                setTimeout(ocultarMsg, 2000);
             }
-            
-            // ==========================================
-            // ACTUALIZAR TABLA
-            // ==========================================
             
             function actualizarTabla() {
-                const container = document.getElementById('tabla-prods-rem-container');
-                if (!container) return;
+                const c = document.getElementById('tabla-auto-container');
+                if (!c) return;
                 
                 if (state.productosAgregados.length === 0) {
-                    container.innerHTML = '';
+                    c.innerHTML = '';
                     window.productosRemisionFinal = [];
                     return;
                 }
                 
                 let total = 0;
                 const filas = state.productosAgregados.map((p, i) => {
-                    const subtotal = p.cantidad * p.precio;
-                    total += subtotal;
-                    
+                    const sub = p.cantidad * p.precio;
+                    total += sub;
                     return `
-                        <tr style="border-bottom: 1px solid #e5e7eb;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
+                        <tr style="border-bottom: 1px solid #e5e7eb;">
                             <td style="padding: 12px; font-family: monospace; font-weight: 600;">${p.codigo}</td>
                             <td style="padding: 12px;">${p.nombre}</td>
                             <td style="padding: 12px; text-align: center; font-weight: 600;">${p.cantidad}</td>
                             <td style="padding: 12px; text-align: center;">1</td>
-                            <td style="padding: 12px; text-align: right;">${formatearPrecio(p.precio)}</td>
-                            <td style="padding: 12px; text-align: right; color: #059669; font-weight: 700;">${formatearPrecio(subtotal)}</td>
+                            <td style="padding: 12px; text-align: right;">$${p.precio.toLocaleString('es-CO')}</td>
+                            <td style="padding: 12px; text-align: right; color: #059669; font-weight: 700;">$${sub.toLocaleString('es-CO')}</td>
                             <td style="padding: 12px; text-align: center;">
-                                <button onclick="window.__elimProd(${i})" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">🗑️</button>
+                                <button onclick="window.__del(${i})" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">🗑️</button>
                             </td>
                         </tr>
                     `;
                 }).join('');
                 
-                container.innerHTML = `
+                c.innerHTML = `
                     <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
                         <thead>
                             <tr style="background: linear-gradient(to right, #059669, #047857); color: white;">
-                                <th style="padding: 14px; text-align: left; font-weight: 700; text-transform: uppercase;">Código</th>
-                                <th style="padding: 14px; text-align: left; font-weight: 700; text-transform: uppercase;">Descripción</th>
-                                <th style="padding: 14px; text-align: center; font-weight: 700; text-transform: uppercase;">Cantidad</th>
-                                <th style="padding: 14px; text-align: center; font-weight: 700; text-transform: uppercase;">Bodega</th>
-                                <th style="padding: 14px; text-align: right; font-weight: 700; text-transform: uppercase;">V/Unit</th>
-                                <th style="padding: 14px; text-align: right; font-weight: 700; text-transform: uppercase;">V/Total</th>
+                                <th style="padding: 14px; text-align: left;">CÓDIGO</th>
+                                <th style="padding: 14px; text-align: left;">DESCRIPCIÓN</th>
+                                <th style="padding: 14px; text-align: center;">CANTIDAD</th>
+                                <th style="padding: 14px; text-align: center;">BODEGA</th>
+                                <th style="padding: 14px; text-align: right;">V/UNIT</th>
+                                <th style="padding: 14px; text-align: right;">V/TOTAL</th>
                                 <th style="padding: 14px;"></th>
                             </tr>
                         </thead>
@@ -4522,7 +4473,7 @@
                             ${filas}
                             <tr style="background: #f3f4f6;">
                                 <td colspan="5" style="padding: 16px; text-align: right; font-weight: 700; font-size: 17px;">TOTAL:</td>
-                                <td style="padding: 16px; text-align: right; color: #059669; font-weight: 700; font-size: 20px;">${formatearPrecio(total)}</td>
+                                <td style="padding: 16px; text-align: right; color: #059669; font-weight: 700; font-size: 20px;">$${total.toLocaleString('es-CO')}</td>
                                 <td></td>
                             </tr>
                         </tbody>
@@ -4539,98 +4490,56 @@
                 }));
             }
             
-            window.__elimProd = function(i) {
+            window.__del = function(i) {
                 if (confirm('¿Eliminar?')) {
                     state.productosAgregados.splice(i, 1);
                     actualizarTabla();
                 }
             };
             
-            // ==========================================
-            // UTILIDADES
-            // ==========================================
-            
-            function formatearPrecio(num) {
-                // SOLUCIÓN: Manejar valores no numéricos
-                const valor = parseFloat(num) || 0;
-                return new Intl.NumberFormat('es-CO', {
-                    style: 'currency',
-                    currency: 'COP',
-                    minimumFractionDigits: 0
-                }).format(valor);
-            }
-            
-            function habilitarBuscador() {
-                const input = document.getElementById('input-buscar-prod-rem');
-                if (input) {
-                    input.disabled = false;
-                    input.placeholder = 'Escribe código o nombre...';
-                    input.style.background = 'white';
-                }
-            }
-            
-            function habilitarBotonAgregar() {
-                const btn = document.getElementById('btn-add-prod-rem');
-                if (btn) {
-                    btn.disabled = false;
-                    btn.style.opacity = '1';
-                    btn.style.cursor = 'pointer';
-                }
-            }
-            
-            function deshabilitarBotonAgregar() {
-                const btn = document.getElementById('btn-add-prod-rem');
-                if (btn) {
-                    btn.disabled = true;
-                    btn.style.opacity = '0.5';
-                    btn.style.cursor = 'not-allowed';
-                }
-            }
-            
-            function mostrarMensaje(texto, tipo) {
-                const msg = document.getElementById('msg-prods-rem');
-                if (!msg) return;
-                
-                const estilos = {
-                    info: { bg: '#dbeafe', color: '#1e40af', border: '#93c5fd' },
-                    success: { bg: '#d1fae5', color: '#065f46', border: '#6ee7b7' },
-                    error: { bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' }
+            function mostrarMsg(txt, tipo) {
+                const m = document.getElementById('msg-auto');
+                if (!m) return;
+                const c = {
+                    info: { bg: '#dbeafe', col: '#1e40af', bor: '#93c5fd' },
+                    success: { bg: '#d1fae5', col: '#065f46', bor: '#6ee7b7' },
+                    error: { bg: '#fee2e2', col: '#991b1b', bor: '#fca5a5' }
                 };
+                const s = c[tipo] || c.info;
+                m.style.background = s.bg;
+                m.style.color = s.col;
+                m.style.border = `2px solid ${s.bor}`;
+                m.textContent = txt;
+                m.style.display = 'block';
+            }
+            
+            function ocultarMsg() {
+                const m = document.getElementById('msg-auto');
+                if (m) m.style.display = 'none';
+            }
+            
+            // ==========================================
+            // INICIAR
+            // ==========================================
+            
+            async function iniciar() {
+                if (typeof firebase === 'undefined' || !window.db) {
+                    setTimeout(iniciar, 500);
+                    return;
+                }
                 
-                const e = estilos[tipo] || estilos.info;
-                msg.style.background = e.bg;
-                msg.style.color = e.color;
-                msg.style.border = `2px solid ${e.border}`;
-                msg.textContent = texto;
-                msg.style.display = 'block';
+                console.log('✅ Firebase listo, iniciando detección...');
+                
+                const tablas = await detectarTablasDisponibles();
+                await identificarTablaCatalogo(tablas);
+                crearInterfaz();
             }
             
-            function ocultarMensaje() {
-                const msg = document.getElementById('msg-prods-rem');
-                if (msg) msg.style.display = 'none';
-            }
-            
-            // ==========================================
-            // INICIAR SISTEMA
-            // ==========================================
-            
-            function iniciarSistema() {
-                cargarCatalogoConReintentos()
-                    .then(() => {
-                        crearInterfazConReintentos();
-                    })
-                    .catch(err => {
-                        console.error('Error iniciando:', err);
-                        // SOLUCIÓN: Continuar de todas formas
-                        crearInterfazConReintentos();
-                    });
-            }
-            
-            esperarFirebaseConReintentos();
+            iniciar();
             
         })();
         
-        console.log('✅ Sistema auto-reparable cargado');
+        console.log('✅ Sistema inteligente con detección automática cargado');
     </script>
 </body>
 </html>
