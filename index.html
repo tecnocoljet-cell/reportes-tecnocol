@@ -3872,627 +3872,304 @@
         console.log('✅ SCRIPT COMPLETAMENTE CARGADO');
 
         // ==========================================
-        // SISTEMA PARA ESTRUCTURA REAL DE AIRTABLE
-        // Productos y precios en "Precios por Cliente"
+        // SISTEMA CON CAMPOS EXACTOS DETECTADOS
         // ==========================================
         
         (function() {
             'use strict';
             
-            console.log('🎯 Sistema adaptado a estructura real de Airtable');
+            console.log('🎯 Sistema con campos exactos');
             
             const CONFIG = {
                 airtable: {
                     token: 'patTxoLSfgJZYsfoa.a30cdbab9572e691d72c75c9ccfd23bd6d40ae4be7278a2b725961475c30f01b',
                     baseId: 'appZR5HyyKvRk6rhJ',
-                    tabla: 'Precios por Cliente'
+                    tablaProductos: 'Productos',
+                    tablaPrecios: 'Precios por Cliente'
                 }
             };
             
             let state = {
-                productosCliente: [],
+                productosDisponibles: [],
+                preciosCliente: {},
                 productoSeleccionado: null,
-                productosAgregados: [],
-                interfazCreada: false
+                productosAgregados: []
             };
             
-            // ==========================================
-            // ESPERAR FIREBASE
-            // ==========================================
+            function esperarFirebase(i = 0) {
+                if (i > 30) { iniciar(); return; }
+                if (typeof firebase !== 'undefined' && window.db) { console.log('✅ Firebase OK'); iniciar(); }
+                else { setTimeout(() => esperarFirebase(i + 1), 500); }
+            }
             
-            function esperarFirebase(intentos = 0) {
-                if (intentos > 30) {
-                    console.warn('⚠️ Firebase no disponible, continuando de todas formas');
-                    iniciar();
-                    return;
-                }
-                
-                if (typeof firebase !== 'undefined' && firebase.firestore && window.db) {
-                    console.log('✅ Firebase listo');
-                    iniciar();
-                } else {
-                    setTimeout(() => esperarFirebase(intentos + 1), 500);
+            async function cargarCatalogoProductos() {
+                try {
+                    console.log('📦 Cargando catálogo de "Productos"...');
+                    
+                    const url = `https://api.airtable.com/v0/${CONFIG.airtable.baseId}/${encodeURIComponent(CONFIG.airtable.tablaProductos)}`;
+                    const res = await fetch(url, {
+                        headers: { 'Authorization': `Bearer ${CONFIG.airtable.token}` }
+                    });
+                    
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    
+                    const data = await res.json();
+                    
+                    state.productosDisponibles = data.records.map(r => ({
+                        codigo: String(r.fields['Código del producto'] || '').trim(),
+                        nombre: String(r.fields['Nombre del producto'] || '').trim(),
+                        unidad: String(r.fields['Unidad de medida'] || '').trim()
+                    })).filter(p => p.codigo && p.nombre);
+                    
+                    console.log(`✅ ${state.productosDisponibles.length} productos cargados`);
+                    console.log('📋 Primeros:', state.productosDisponibles.slice(0, 3));
+                    
+                } catch (e) {
+                    console.error('❌ Error catálogo:', e);
                 }
             }
             
-            // ==========================================
-            // CARGAR PRODUCTOS DEL CLIENTE
-            // ==========================================
-            
-            async function cargarProductosCliente(nombreCliente) {
+            async function cargarPreciosCliente(nombreCliente) {
                 try {
-                    console.log(`📦 Cargando productos de: ${nombreCliente}`);
-                    mostrarMensaje(`Cargando productos de ${nombreCliente}...`, 'info');
+                    console.log(`💰 Cargando precios de: ${nombreCliente}`);
+                    mostrarMsg(`Cargando precios de ${nombreCliente}...`, 'info');
                     
-                    // Limpiar nombre del cliente
-                    const nombreLimpio = nombreCliente.replace(/['"]/g, '').trim();
+                    const formula = `SEARCH("${nombreCliente.replace(/"/g, '')}", {Nombre del cliente})`;
+                    const url = `https://api.airtable.com/v0/${CONFIG.airtable.baseId}/${encodeURIComponent(CONFIG.airtable.tablaPrecios)}?filterByFormula=${encodeURIComponent(formula)}`;
                     
-                    // Intentar con múltiples fórmulas
-                    const formulas = [
-                        `SEARCH("${nombreLimpio}", {Nombre del cliente})`,
-                        `{Nombre del cliente} = "${nombreLimpio}"`,
-                        `FIND("${nombreLimpio}", {Nombre del cliente}) > 0`
-                    ];
+                    const res = await fetch(url, {
+                        headers: { 'Authorization': `Bearer ${CONFIG.airtable.token}` },
+                        signal: AbortSignal.timeout(10000)
+                    });
                     
-                    for (const formula of formulas) {
-                        try {
-                            const url = `https://api.airtable.com/v0/${CONFIG.airtable.baseId}/${encodeURIComponent(CONFIG.airtable.tabla)}?filterByFormula=${encodeURIComponent(formula)}`;
-                            
-                            console.log(`🔍 Probando fórmula: ${formula}`);
-                            
-                            const response = await fetch(url, {
-                                method: 'GET',
-                                headers: {
-                                    'Authorization': `Bearer ${CONFIG.airtable.token}`,
-                                    'Content-Type': 'application/json'
-                                },
-                                signal: AbortSignal.timeout(10000)
-                            });
-                            
-                            if (!response.ok) {
-                                console.warn(`⚠️ HTTP ${response.status} con fórmula: ${formula}`);
-                                continue;
-                            }
-                            
-                            const data = await response.json();
-                            
-                            if (data.records && data.records.length > 0) {
-                                console.log(`✅ Encontrados ${data.records.length} productos`);
-                                
-                                // Procesar productos
-                                state.productosCliente = data.records.map(record => {
-                                    const fields = record.fields;
-                                    return {
-                                        codigo: String(fields['Id'] || '').trim(),
-                                        nombre: String(fields['Producto'] || '').trim(),
-                                        precio: parseFloat(fields['Precio acordado']) || 0,
-                                        observaciones: String(fields['Observaciones'] || '').trim()
-                                    };
-                                }).filter(p => p.codigo && p.nombre && p.precio > 0);
-                                
-                                console.log(`✅ ${state.productosCliente.length} productos válidos procesados`);
-                                console.log('📋 Productos:', state.productosCliente.slice(0, 3));
-                                
-                                if (state.productosCliente.length > 0) {
-                                    habilitarBuscador();
-                                    mostrarMensaje(`✅ ${state.productosCliente.length} productos disponibles`, 'success');
-                                    setTimeout(ocultarMensaje, 3000);
-                                    return true;
-                                }
-                            }
-                            
-                        } catch (error) {
-                            console.warn(`⚠️ Error con fórmula: ${formula}`, error.message);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    
+                    const data = await res.json();
+                    
+                    state.preciosCliente = {};
+                    data.records.forEach(r => {
+                        const cod = String(r.fields['Id'] || '').trim();
+                        const precio = parseFloat(r.fields['Precio acordado']);
+                        if (cod && !isNaN(precio) && precio > 0) {
+                            state.preciosCliente[cod] = precio;
                         }
+                    });
+                    
+                    const count = Object.keys(state.preciosCliente).length;
+                    console.log(`✅ ${count} precios cargados`);
+                    
+                    if (count > 0) {
+                        habilitar();
+                        mostrarMsg(`✅ ${count} productos con precio`, 'success');
+                        setTimeout(ocultarMsg, 3000);
+                    } else {
+                        mostrarMsg('⚠️ No hay precios para este cliente', 'error');
                     }
                     
-                    // Si llegó aquí, no encontró productos
-                    console.warn('⚠️ No se encontraron productos para este cliente');
-                    state.productosCliente = [];
-                    deshabilitarBuscador();
-                    mostrarMensaje('⚠️ No se encontraron productos para este cliente', 'error');
-                    return false;
-                    
-                } catch (error) {
-                    console.error('❌ Error general:', error);
-                    mostrarMensaje('Error al cargar productos', 'error');
-                    return false;
+                } catch (e) {
+                    console.error('❌ Error precios:', e);
+                    mostrarMsg('Error al cargar precios', 'error');
                 }
             }
-            
-            // ==========================================
-            // CREAR INTERFAZ
-            // ==========================================
             
             function crearInterfaz() {
-                if (state.interfazCreada) return;
+                const c = document.getElementById('remisionesContent') ||
+                         document.querySelector('[id*="remision"]') ||
+                         document.body;
                 
-                const contenedores = [
-                    document.getElementById('remisionesContent'),
-                    document.querySelector('[id*="remision"]'),
-                    document.querySelector('[id*="Remision"]'),
-                    document.querySelector('.tab-content'),
-                    document.querySelector('main')
-                ];
+                if (document.getElementById('sist-prod-final')) return;
                 
-                const contenedor = contenedores.find(c => c !== null);
-                
-                if (!contenedor) {
-                    console.warn('⚠️ Contenedor no encontrado, reintentando...');
-                    setTimeout(crearInterfaz, 1000);
-                    return;
-                }
-                
-                console.log(`✅ Contenedor encontrado: ${contenedor.id || contenedor.className || 'elemento'}`);
-                
-                const html = `
-                    <div id="sistema-productos-real" style="background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 100%); padding: 24px; border-radius: 12px; margin: 20px 0; border: 2px solid #10b981; box-shadow: 0 4px 6px rgba(0,0,0,0.07);">
-                        <h3 style="margin: 0 0 20px 0; color: #1f2937; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
-                            <span>📦</span>
-                            <span>Agregar Productos a la Remisión</span>
-                        </h3>
-                        
-                        <!-- Buscador de productos -->
-                        <div style="margin-bottom: 16px; position: relative;">
-                            <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 14px;">
-                                🔍 Buscar Producto:
-                            </label>
-                            <input 
-                                type="text" 
-                                id="buscar-producto-input"
-                                placeholder="Primero selecciona un cliente arriba..."
-                                disabled
-                                autocomplete="off"
-                                style="width: 100%; padding: 14px 16px; font-size: 15px; border: 2px solid #d1d5db; border-radius: 8px; background: #f9fafb; outline: none; transition: all 0.2s; font-weight: 500;"
-                            />
-                            <div id="resultados-productos" 
-                                 style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 2px solid #10b981; border-top: none; border-radius: 0 0 8px 8px; max-height: 350px; overflow-y: auto; z-index: 1000; box-shadow: 0 8px 16px rgba(0,0,0,0.15); margin-top: -2px;">
-                            </div>
+                c.insertAdjacentHTML('afterbegin', `
+                    <div id="sist-prod-final" style="background: #f0fdf4; padding: 24px; border-radius: 12px; margin: 20px 0; border: 2px solid #10b981;">
+                        <h3 style="margin: 0 0 16px 0; color: #1f2937; font-size: 20px; font-weight: 700;">📦 Productos</h3>
+                        <div style="margin-bottom: 16px;">
+                            <input type="text" id="inp-buscar" placeholder="Selecciona un cliente..." disabled autocomplete="off"
+                                   style="width: 100%; padding: 14px; border: 2px solid #d1d5db; border-radius: 8px; background: #f9fafb; font-size: 15px; outline: none;"/>
+                            <div id="dd-prod" style="display: none; position: absolute; background: white; border: 2px solid #10b981; border-radius: 0 0 8px 8px; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></div>
                         </div>
-                        
-                        <!-- Cantidad y botón agregar -->
-                        <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
-                            <div style="flex: 0 0 auto;">
-                                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 14px;">
-                                    Cantidad:
-                                </label>
-                                <input 
-                                    type="number" 
-                                    id="cantidad-input" 
-                                    value="1" 
-                                    min="1"
-                                    step="1"
-                                    style="width: 110px; padding: 12px; text-align: center; border: 2px solid #d1d5db; border-radius: 8px; font-size: 16px; font-weight: 700; outline: none;"
-                                />
-                            </div>
-                            <button 
-                                id="btn-agregar-prod" 
-                                disabled
-                                style="flex: 0 0 auto; background: #10b981; color: white; border: none; padding: 14px 28px; border-radius: 8px; font-weight: 700; font-size: 15px; cursor: not-allowed; opacity: 0.4; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                ➕ Agregar Producto
-                            </button>
+                        <div style="display: flex; gap: 12px;">
+                            <input type="number" id="inp-cant" value="1" min="1" style="width: 100px; padding: 12px; text-align: center; border: 2px solid #d1d5db; border-radius: 8px; font-weight: 700;"/>
+                            <button id="btn-add" disabled style="background: #10b981; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; cursor: not-allowed; opacity: 0.4;">➕ Agregar</button>
                         </div>
-                        
-                        <!-- Mensaje de estado -->
-                        <div id="mensaje-estado" style="margin-top: 16px; padding: 14px; border-radius: 8px; display: none; font-weight: 600; font-size: 14px;">
-                        </div>
+                        <div id="msg-st" style="margin-top: 12px; padding: 12px; border-radius: 6px; display: none; font-weight: 600;"></div>
                     </div>
-                    
-                    <!-- Tabla de productos agregados -->
-                    <div id="tabla-productos-contenedor" style="margin-top: 20px;">
-                    </div>
-                `;
+                    <div id="tabla-cont"></div>
+                `);
                 
-                contenedor.insertAdjacentHTML('afterbegin', html);
+                const inp = document.getElementById('inp-buscar');
+                inp.oninput = e => buscar(e.target.value);
+                inp.onfocus = function() {
+                    if (!this.disabled) { this.style.borderColor = '#10b981'; this.style.background = 'white'; }
+                };
+                inp.onblur = function() {
+                    this.style.borderColor = '#d1d5db';
+                    setTimeout(() => { const dd = document.getElementById('dd-prod'); if (dd) dd.style.display = 'none'; }, 200);
+                };
                 
-                state.interfazCreada = true;
-                console.log('✅ Interfaz creada correctamente');
+                document.getElementById('btn-add').onclick = agregar;
                 
-                // Conectar eventos
-                conectarEventos();
+                setTimeout(conectar, 1000);
+                console.log('✅ Interfaz creada');
             }
             
-            // ==========================================
-            // CONECTAR EVENTOS
-            // ==========================================
-            
-            function conectarEventos() {
-                // Buscador
-                const inputBuscar = document.getElementById('buscar-producto-input');
-                if (inputBuscar) {
-                    inputBuscar.addEventListener('input', (e) => buscarProducto(e.target.value));
-                    
-                    inputBuscar.addEventListener('focus', function() {
-                        if (!this.disabled) {
-                            this.style.borderColor = '#10b981';
-                            this.style.background = 'white';
-                            this.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
-                        }
-                    });
-                    
-                    inputBuscar.addEventListener('blur', function() {
-                        this.style.borderColor = '#d1d5db';
-                        this.style.boxShadow = 'none';
-                        if (this.disabled) this.style.background = '#f9fafb';
-                        
-                        setTimeout(() => {
-                            const dropdown = document.getElementById('resultados-productos');
-                            if (dropdown) dropdown.style.display = 'none';
-                        }, 250);
-                    });
-                }
-                
-                // Botón agregar
-                const btnAgregar = document.getElementById('btn-agregar-prod');
-                if (btnAgregar) {
-                    btnAgregar.addEventListener('click', agregarProducto);
-                }
-                
-                // Conectar selector de cliente
-                setTimeout(conectarSelectorCliente, 1000);
-            }
-            
-            function conectarSelectorCliente() {
-                const todosLosElementos = document.querySelectorAll('select, input[type="text"], input[type="search"]');
-                let encontrado = false;
-                
-                todosLosElementos.forEach(elemento => {
-                    const id = (elemento.id || '').toLowerCase();
-                    const name = (elemento.name || '').toLowerCase();
-                    const placeholder = (elemento.placeholder || '').toLowerCase();
-                    
-                    if (id.includes('cliente') || name.includes('cliente') || placeholder.includes('cliente')) {
-                        elemento.addEventListener('change', function() {
-                            let nombreCliente = '';
-                            
-                            if (this.tagName === 'SELECT') {
-                                const option = this.options[this.selectedIndex];
-                                nombreCliente = option ? option.text : '';
-                            } else {
-                                nombreCliente = this.value;
-                            }
-                            
-                            if (nombreCliente) {
-                                // Limpiar nombre (quitar NIT, separadores, etc.)
-                                nombreCliente = nombreCliente.split('-')[0].split('|')[0].split('(')[0].trim();
-                                
-                                if (nombreCliente.length > 2) {
-                                    console.log(`👤 Cliente seleccionado: "${nombreCliente}"`);
-                                    
-                                    // Limpiar productos agregados anteriores
+            function conectar() {
+                document.querySelectorAll('select, input').forEach(el => {
+                    const id = (el.id || '').toLowerCase();
+                    const name = (el.name || '').toLowerCase();
+                    if (id.includes('cliente') || name.includes('cliente')) {
+                        el.addEventListener('change', function() {
+                            let nom = this.tagName === 'SELECT' ? this.options[this.selectedIndex]?.text : this.value;
+                            if (nom) {
+                                nom = nom.split('-')[0].trim();
+                                if (nom.length > 2) {
+                                    console.log(`👤 Cliente: ${nom}`);
                                     state.productosAgregados = [];
-                                    actualizarTabla();
-                                    
-                                    // Cargar productos del cliente
-                                    cargarProductosCliente(nombreCliente);
+                                    actualizar();
+                                    cargarPreciosCliente(nom);
                                 }
                             }
                         });
-                        
-                        console.log(`✅ Conectado a selector de cliente: ${elemento.id || elemento.name || 'sin nombre'}`);
-                        encontrado = true;
+                        console.log(`✅ Conectado: ${el.id || el.name}`);
                     }
                 });
-                
-                if (!encontrado) {
-                    console.warn('⚠️ Selector de cliente no encontrado, reintentando...');
-                    setTimeout(conectarSelectorCliente, 1000);
-                }
             }
             
-            // ==========================================
-            // BUSCAR PRODUCTOS
-            // ==========================================
-            
-            function buscarProducto(texto) {
-                const dropdown = document.getElementById('resultados-productos');
-                if (!dropdown) return;
+            function buscar(txt) {
+                const dd = document.getElementById('dd-prod');
+                if (!dd) return;
+                if (!txt || txt.length < 2) { dd.style.display = 'none'; return; }
                 
-                if (!texto || texto.length < 2) {
-                    dropdown.style.display = 'none';
-                    return;
-                }
+                const low = txt.toLowerCase();
+                const conPrecio = state.productosDisponibles.filter(p => state.preciosCliente[p.codigo] !== undefined);
+                const res = conPrecio.filter(p => p.codigo.toLowerCase().includes(low) || p.nombre.toLowerCase().includes(low));
                 
-                const textoLower = texto.toLowerCase().trim();
-                
-                // Buscar por código o nombre
-                const resultados = state.productosCliente.filter(p =>
-                    p.codigo.toLowerCase().includes(textoLower) ||
-                    p.nombre.toLowerCase().includes(textoLower)
-                );
-                
-                if (resultados.length === 0) {
-                    dropdown.innerHTML = `
-                        <div style="padding: 20px; text-align: center; color: #6b7280; font-size: 14px;">
-                            <div style="font-size: 32px; margin-bottom: 8px;">🔍</div>
-                            <div>No se encontraron productos</div>
-                        </div>
-                    `;
-                    dropdown.style.display = 'block';
-                    return;
-                }
-                
-                // Renderizar resultados
-                dropdown.innerHTML = resultados.slice(0, 10).map(producto => {
-                    const precioFormateado = new Intl.NumberFormat('es-CO', {
-                        style: 'currency',
-                        currency: 'COP',
-                        minimumFractionDigits: 0
-                    }).format(producto.precio);
-                    
-                    // Escapar caracteres especiales
-                    const nombreSeguro = producto.nombre.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                    const obsSeguras = producto.observaciones.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                    
-                    return `
-                        <div onclick="window.__seleccionarProd('${producto.codigo}', '${nombreSeguro}', ${producto.precio}, '${obsSeguras}')"
-                             style="padding: 14px 16px; cursor: pointer; border-bottom: 1px solid #e5e7eb; transition: all 0.15s;"
-                             onmouseover="this.style.background='#f0fdf4'; this.style.borderLeft='4px solid #10b981'; this.style.paddingLeft='12px'"
-                             onmouseout="this.style.background='white'; this.style.borderLeft='none'; this.style.paddingLeft='16px'">
-                            <div style="font-weight: 700; color: #1f2937; font-size: 15px; margin-bottom: 6px;">${producto.nombre}</div>
-                            <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: #6b7280;">
-                                <span style="background: #e5e7eb; padding: 3px 10px; border-radius: 4px; font-family: 'Courier New', monospace; font-weight: 700; color: #374151;">${producto.codigo}</span>
-                                <span style="color: #d1d5db;">•</span>
-                                <span style="color: #10b981; font-weight: 800; font-size: 14px;">${precioFormateado}</span>
-                                ${producto.observaciones ? `<span style="color: #d1d5db;">•</span><span style="color: #6b7280; font-style: italic;">${producto.observaciones}</span>` : ''}
+                if (res.length === 0) {
+                    dd.innerHTML = '<div style="padding: 16px; text-align: center; color: #6b7280;">Sin resultados</div>';
+                } else {
+                    dd.innerHTML = res.slice(0, 10).map(p => {
+                        const precio = state.preciosCliente[p.codigo] || 0;
+                        const pf = new Intl.NumberFormat('es-CO', {style: 'currency', currency: 'COP', minimumFractionDigits: 0}).format(precio);
+                        return `
+                            <div onclick="window.__sel('${p.codigo}', '${p.nombre.replace(/'/g, "\\'")}', ${precio}, '${p.unidad}')"
+                                 style="padding: 12px; cursor: pointer; border-bottom: 1px solid #e5e7eb;"
+                                 onmouseover="this.style.background='#f0fdf4'"
+                                 onmouseout="this.style.background='white'">
+                                <div style="font-weight: 700;">${p.nombre}</div>
+                                <div style="font-size: 13px; color: #6b7280; margin-top: 4px;">
+                                    <span style="background: #e5e7eb; padding: 2px 8px; border-radius: 3px; font-family: monospace;">${p.codigo}</span>
+                                    <span> • ${p.unidad} • </span>
+                                    <span style="color: #10b981; font-weight: 700;">${pf}</span>
+                                </div>
                             </div>
-                        </div>
-                    `;
-                }).join('');
-                
-                dropdown.style.display = 'block';
+                        `;
+                    }).join('');
+                }
+                dd.style.display = 'block';
             }
             
-            // ==========================================
-            // SELECCIONAR Y AGREGAR PRODUCTO
-            // ==========================================
-            
-            window.__seleccionarProd = function(codigo, nombre, precio, observaciones) {
-                state.productoSeleccionado = { codigo, nombre, precio, observaciones };
-                
-                const inputBuscar = document.getElementById('buscar-producto-input');
-                if (inputBuscar) {
-                    inputBuscar.value = `${nombre} (${codigo})`;
-                }
-                
-                const dropdown = document.getElementById('resultados-productos');
-                if (dropdown) dropdown.style.display = 'none';
-                
-                // Habilitar botón agregar
-                const btn = document.getElementById('btn-agregar-prod');
-                if (btn) {
-                    btn.disabled = false;
-                    btn.style.opacity = '1';
-                    btn.style.cursor = 'pointer';
-                    btn.style.boxShadow = '0 4px 8px rgba(16, 185, 129, 0.3)';
-                }
-                
-                // Focus en cantidad
-                const inputCantidad = document.getElementById('cantidad-input');
-                if (inputCantidad) {
-                    inputCantidad.focus();
-                    inputCantidad.select();
-                }
+            window.__sel = function(cod, nom, precio, unid) {
+                state.productoSeleccionado = {codigo: cod, nombre: nom, precio: precio, unidad: unid};
+                document.getElementById('inp-buscar').value = `${nom} (${cod})`;
+                document.getElementById('dd-prod').style.display = 'none';
+                const btn = document.getElementById('btn-add');
+                btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
+                document.getElementById('inp-cant').focus();
             };
             
-            function agregarProducto() {
-                if (!state.productoSeleccionado) {
-                    mostrarMensaje('Selecciona un producto primero', 'error');
-                    return;
-                }
+            function agregar() {
+                if (!state.productoSeleccionado) return;
+                const cant = parseInt(document.getElementById('inp-cant').value) || 1;
+                if (cant < 1) { mostrarMsg('Cantidad inválida', 'error'); return; }
                 
-                const inputCantidad = document.getElementById('cantidad-input');
-                const cantidad = parseInt(inputCantidad.value) || 1;
+                const ex = state.productosAgregados.find(p => p.codigo === state.productoSeleccionado.codigo);
+                if (ex) { ex.cantidad += cant; } 
+                else { state.productosAgregados.push({...state.productoSeleccionado, cantidad: cant}); }
                 
-                if (cantidad < 1) {
-                    mostrarMensaje('La cantidad debe ser mayor a 0', 'error');
-                    return;
-                }
-                
-                // Verificar si ya existe
-                const existente = state.productosAgregados.find(p => p.codigo === state.productoSeleccionado.codigo);
-                
-                if (existente) {
-                    existente.cantidad += cantidad;
-                    mostrarMensaje(`✅ Cantidad actualizada a ${existente.cantidad}`, 'success');
-                } else {
-                    state.productosAgregados.push({
-                        ...state.productoSeleccionado,
-                        cantidad
-                    });
-                    mostrarMensaje('✅ Producto agregado correctamente', 'success');
-                }
-                
-                // Limpiar formulario
-                limpiarFormulario();
-                
-                // Actualizar tabla
-                actualizarTabla();
-                
-                // Ocultar mensaje después de 2 segundos
-                setTimeout(ocultarMensaje, 2000);
-            }
-            
-            function limpiarFormulario() {
-                const inputBuscar = document.getElementById('buscar-producto-input');
-                if (inputBuscar) {
-                    inputBuscar.value = '';
-                    inputBuscar.focus();
-                }
-                
-                const inputCantidad = document.getElementById('cantidad-input');
-                if (inputCantidad) inputCantidad.value = '1';
-                
-                const btn = document.getElementById('btn-agregar-prod');
-                if (btn) {
-                    btn.disabled = true;
-                    btn.style.opacity = '0.4';
-                    btn.style.cursor = 'not-allowed';
-                    btn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-                }
-                
+                document.getElementById('inp-buscar').value = '';
+                document.getElementById('inp-cant').value = '1';
                 state.productoSeleccionado = null;
+                const btn = document.getElementById('btn-add');
+                btn.disabled = true; btn.style.opacity = '0.4'; btn.style.cursor = 'not-allowed';
+                
+                actualizar();
+                mostrarMsg('✅ Agregado', 'success');
+                setTimeout(ocultarMsg, 2000);
             }
             
-            // ==========================================
-            // ACTUALIZAR TABLA
-            // ==========================================
-            
-            function actualizarTabla() {
-                const contenedor = document.getElementById('tabla-productos-contenedor');
-                if (!contenedor) return;
+            function actualizar() {
+                const c = document.getElementById('tabla-cont');
+                if (!c) return;
+                if (state.productosAgregados.length === 0) { c.innerHTML = ''; window.productosRemisionFinal = []; return; }
                 
-                if (state.productosAgregados.length === 0) {
-                    contenedor.innerHTML = '';
-                    window.productosRemisionFinal = [];
-                    return;
-                }
-                
-                let totalGeneral = 0;
-                
-                const filas = state.productosAgregados.map((producto, index) => {
-                    const subtotal = producto.cantidad * producto.precio;
-                    totalGeneral += subtotal;
-                    
+                let tot = 0;
+                const filas = state.productosAgregados.map((p, i) => {
+                    const sub = p.cantidad * p.precio;
+                    tot += sub;
                     return `
-                        <tr style="border-bottom: 1px solid #e5e7eb; transition: background 0.15s;"
-                            onmouseover="this.style.background='#f9fafb'"
-                            onmouseout="this.style.background='white'">
-                            <td style="padding: 14px; font-family: 'Courier New', monospace; font-weight: 700; color: #374151; font-size: 14px;">${producto.codigo}</td>
-                            <td style="padding: 14px; color: #1f2937; font-weight: 500;">${producto.nombre}</td>
-                            <td style="padding: 14px; text-align: center; font-weight: 700; color: #1f2937; font-size: 15px;">${producto.cantidad}</td>
-                            <td style="padding: 14px; text-align: center; color: #6b7280; font-weight: 600;">1</td>
-                            <td style="padding: 14px; text-align: right; color: #374151; font-weight: 600;">${formatearPrecio(producto.precio)}</td>
-                            <td style="padding: 14px; text-align: right; color: #10b981; font-weight: 800; font-size: 16px;">${formatearPrecio(subtotal)}</td>
-                            <td style="padding: 14px; text-align: center;">
-                                <button onclick="window.__eliminarProd(${index})"
-                                        style="background: #ef4444; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 13px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);"
-                                        onmouseover="this.style.background='#dc2626'; this.style.transform='scale(1.05)'"
-                                        onmouseout="this.style.background='#ef4444'; this.style.transform='scale(1)'">
-                                    🗑️ Eliminar
-                                </button>
-                            </td>
+                        <tr style="border-bottom: 1px solid #e5e7eb;">
+                            <td style="padding: 12px; font-family: monospace; font-weight: 700;">${p.codigo}</td>
+                            <td style="padding: 12px;">${p.nombre}</td>
+                            <td style="padding: 12px; text-align: center; font-weight: 700;">${p.cantidad}</td>
+                            <td style="padding: 12px; text-align: center;">1</td>
+                            <td style="padding: 12px; text-align: right;">$${p.precio.toLocaleString('es-CO')}</td>
+                            <td style="padding: 12px; text-align: right; color: #10b981; font-weight: 700;">$${sub.toLocaleString('es-CO')}</td>
+                            <td style="padding: 12px; text-align: center;"><button onclick="window.__del(${i})" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">🗑️</button></td>
                         </tr>
                     `;
                 }).join('');
                 
-                contenedor.innerHTML = `
-                    <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                        <thead>
-                            <tr style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
-                                <th style="padding: 16px 14px; text-align: left; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Código</th>
-                                <th style="padding: 16px 14px; text-align: left; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Descripción</th>
-                                <th style="padding: 16px 14px; text-align: center; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Cantidad</th>
-                                <th style="padding: 16px 14px; text-align: center; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Bodega</th>
-                                <th style="padding: 16px 14px; text-align: right; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">V/Unit</th>
-                                <th style="padding: 16px 14px; text-align: right; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">V/Total</th>
-                                <th style="padding: 16px 14px; text-align: center; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Acción</th>
-                            </tr>
-                        </thead>
+                c.innerHTML = `
+                    <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                        <thead><tr style="background: linear-gradient(to right, #10b981, #059669); color: white;">
+                            <th style="padding: 14px; text-align: left;">CÓDIGO</th>
+                            <th style="padding: 14px; text-align: left;">DESCRIPCIÓN</th>
+                            <th style="padding: 14px; text-align: center;">CANTIDAD</th>
+                            <th style="padding: 14px; text-align: center;">BODEGA</th>
+                            <th style="padding: 14px; text-align: right;">V/UNIT</th>
+                            <th style="padding: 14px; text-align: right;">V/TOTAL</th>
+                            <th style="padding: 14px;"></th>
+                        </tr></thead>
                         <tbody>
                             ${filas}
-                            <tr style="background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);">
-                                <td colspan="5" style="padding: 18px 14px; text-align: right; font-weight: 800; font-size: 18px; color: #1f2937; text-transform: uppercase; letter-spacing: 0.5px;">Total:</td>
-                                <td style="padding: 18px 14px; text-align: right; color: #10b981; font-weight: 900; font-size: 22px;">${formatearPrecio(totalGeneral)}</td>
+                            <tr style="background: #f3f4f6;">
+                                <td colspan="5" style="padding: 16px; text-align: right; font-weight: 700; font-size: 17px;">TOTAL:</td>
+                                <td style="padding: 16px; text-align: right; color: #10b981; font-weight: 700; font-size: 20px;">$${tot.toLocaleString('es-CO')}</td>
                                 <td></td>
                             </tr>
                         </tbody>
                     </table>
                 `;
                 
-                // Exponer productos para uso externo
                 window.productosRemisionFinal = state.productosAgregados.map(p => ({
-                    codigo: p.codigo,
-                    nombre: p.nombre,
-                    cantidad: p.cantidad,
-                    precio: p.precio,
-                    observaciones: p.observaciones,
-                    total: p.cantidad * p.precio
+                    codigo: p.codigo, nombre: p.nombre, cantidad: p.cantidad, precio: p.precio, unidad: p.unidad, total: p.cantidad * p.precio
                 }));
             }
             
-            window.__eliminarProd = function(index) {
-                if (confirm('¿Eliminar este producto de la remisión?')) {
-                    state.productosAgregados.splice(index, 1);
-                    actualizarTabla();
-                    mostrarMensaje('Producto eliminado', 'info');
-                    setTimeout(ocultarMensaje, 2000);
-                }
-            };
+            window.__del = function(i) { if (confirm('¿Eliminar?')) { state.productosAgregados.splice(i, 1); actualizar(); } };
             
-            // ==========================================
-            // UTILIDADES
-            // ==========================================
-            
-            function formatearPrecio(numero) {
-                const valor = parseFloat(numero) || 0;
-                return new Intl.NumberFormat('es-CO', {
-                    style: 'currency',
-                    currency: 'COP',
-                    minimumFractionDigits: 0
-                }).format(valor);
+            function habilitar() {
+                const inp = document.getElementById('inp-buscar');
+                if (inp) { inp.disabled = false; inp.placeholder = '🔍 Busca por código o nombre...'; inp.style.background = 'white'; inp.focus(); }
             }
             
-            function habilitarBuscador() {
-                const input = document.getElementById('buscar-producto-input');
-                if (input) {
-                    input.disabled = false;
-                    input.placeholder = '🔍 Escribe el código o nombre del producto...';
-                    input.style.background = 'white';
-                    input.style.cursor = 'text';
-                    input.focus();
-                }
+            function mostrarMsg(txt, tipo) {
+                const m = document.getElementById('msg-st');
+                if (!m) return;
+                const c = {info: {bg: '#dbeafe', col: '#1e40af'}, success: {bg: '#d1fae5', col: '#065f46'}, error: {bg: '#fee2e2', col: '#991b1b'}};
+                const s = c[tipo] || c.info;
+                m.style.background = s.bg; m.style.color = s.col; m.textContent = txt; m.style.display = 'block';
             }
             
-            function deshabilitarBuscador() {
-                const input = document.getElementById('buscar-producto-input');
-                if (input) {
-                    input.disabled = true;
-                    input.value = '';
-                    input.placeholder = 'Primero selecciona un cliente arriba...';
-                    input.style.background = '#f9fafb';
-                    input.style.cursor = 'not-allowed';
-                }
-            }
-            
-            function mostrarMensaje(texto, tipo) {
-                const mensaje = document.getElementById('mensaje-estado');
-                if (!mensaje) return;
-                
-                const estilos = {
-                    info: { bg: '#dbeafe', color: '#1e40af', border: '#3b82f6' },
-                    success: { bg: '#d1fae5', color: '#065f46', border: '#10b981' },
-                    error: { bg: '#fee2e2', color: '#991b1b', border: '#ef4444' }
-                };
-                
-                const estilo = estilos[tipo] || estilos.info;
-                
-                mensaje.style.background = estilo.bg;
-                mensaje.style.color = estilo.color;
-                mensaje.style.border = `2px solid ${estilo.border}`;
-                mensaje.textContent = texto;
-                mensaje.style.display = 'block';
-            }
-            
-            function ocultarMensaje() {
-                const mensaje = document.getElementById('mensaje-estado');
-                if (mensaje) mensaje.style.display = 'none';
-            }
-            
-            // ==========================================
-            // INICIAR
-            // ==========================================
+            function ocultarMsg() { const m = document.getElementById('msg-st'); if (m) m.style.display = 'none'; }
             
             function iniciar() {
-                console.log('🚀 Iniciando sistema de productos');
-                crearInterfaz();
+                cargarCatalogoProductos().then(() => crearInterfaz());
             }
             
             esperarFirebase();
-            
         })();
         
-        console.log('✅ Sistema para estructura real de Airtable cargado');
+        console.log('✅ Sistema con campos exactos cargado');
     </script>
 </body>
 </html>
