@@ -3872,344 +3872,727 @@
         console.log('✅ SCRIPT COMPLETAMENTE CARGADO');
 
         // ==========================================
-        // BUSCADOR DE PRODUCTOS PARA REMISIONES
-        // Estilo dropdown como selector de clientes
+        // SISTEMA DE PRODUCTOS - VERSIÓN SIN ERRORES
         // ==========================================
         
-        const AIRTABLE_REMISIONES = {
-            token: 'patTxoLSfgJZYsfoa.a30cdbab9572e691d72c75c9ccfd23bd6d40ae4be7278a2b725961475c30f01b',
-            baseId: 'appZR5HyyKvRk6rhJ'
-        };
-
-        let catalogoProductosCache = [];
-        let preciosClienteActualCache = {};
-        let clienteRemisionActual = null;
-
-        // Cargar catálogo completo al inicio
-        async function cargarCatalogoCompleto() {
-            try {
-                const url = `https://api.airtable.com/v0/${AIRTABLE_REMISIONES.baseId}/Catálogo de Productos`;
-                const response = await fetch(url, {
-                    headers: { 'Authorization': `Bearer ${AIRTABLE_REMISIONES.token}` }
-                });
-                const data = await response.json();
-                
-                catalogoProductosCache = data.records.map(rec => ({
-                    codigo: rec.fields['Código'] || '',
-                    nombre: rec.fields['Nombre'] || '',
-                    unidad: rec.fields['Unidad de Medida'] || ''
-                }));
-                
-                console.log('✅ Catálogo cargado:', catalogoProductosCache.length, 'productos');
-            } catch (error) {
-                console.error('❌ Error cargando catálogo:', error);
-            }
-        }
-
-        // Cargar precios cuando se selecciona cliente
-        async function cargarPreciosDelCliente(nombreCliente) {
-            try {
-                clienteRemisionActual = nombreCliente;
-                const formula = encodeURIComponent(`SEARCH("${nombreCliente}",{Nombre del cliente})`);
-                const url = `https://api.airtable.com/v0/${AIRTABLE_REMISIONES.baseId}/Precios por Cliente?filterByFormula=${formula}`;
-                
-                const response = await fetch(url, {
-                    headers: { 'Authorization': `Bearer ${AIRTABLE_REMISIONES.token}` }
-                });
-                const data = await response.json();
-                
-                preciosClienteActualCache = {};
-                data.records.forEach(rec => {
-                    const codigo = rec.fields['Id'];
-                    const precio = rec.fields['Precio acordado'];
-                    if (codigo && precio) {
-                        preciosClienteActualCache[codigo] = precio;
+        (function() {
+            'use strict';
+            
+            console.log('🔧 Iniciando sistema de productos (versión sin errores)...');
+            
+            const CONFIG = {
+                airtable: {
+                    token: 'patTxoLSfgJZYsfoa.a30cdbab9572e691d72c75c9ccfd23bd6d40ae4be7278a2b725961475c30f01b',
+                    baseId: 'appZR5HyyKvRk6rhJ',
+                    tables: {
+                        catalogo: 'Catálogo de Productos',
+                        precios: 'Precios por Cliente'
                     }
-                });
+                },
+                delays: {
+                    firebase: 500,
+                    interfaz: 1000,
+                    selector: 500
+                }
+            };
+            
+            let state = {
+                catalogoProductos: [],
+                preciosCliente: {},
+                productoSeleccionado: null,
+                productosAgregados: [],
+                clienteActual: null,
+                firebaseReady: false,
+                interfazCreada: false
+            };
+            
+            // ==========================================
+            // 1. ESPERAR A FIREBASE
+            // ==========================================
+            
+            function esperarFirebase(intentos = 0) {
+                if (intentos > 20) {
+                    console.error('❌ Timeout esperando Firebase');
+                    return;
+                }
                 
-                console.log('✅ Precios cargados para', nombreCliente, ':', Object.keys(preciosClienteActualCache).length, 'productos');
-                
-                // Habilitar buscador de productos
-                habilitarBuscadorProductos();
-                
-            } catch (error) {
-                console.error('❌ Error cargando precios:', error);
-            }
-        }
-
-        function habilitarBuscadorProductos() {
-            const buscador = document.getElementById('buscador-producto-remision');
-            if (buscador) {
-                buscador.disabled = false;
-                buscador.placeholder = 'Buscar producto por código o nombre...';
-                console.log('✅ Buscador de productos habilitado');
-            }
-        }
-
-        // Crear el buscador de productos
-        function crearBuscadorProductos() {
-            const contenedor = document.getElementById('contenedor-buscador-productos');
-            if (!contenedor) {
-                const nuevoContenedor = document.createElement('div');
-                nuevoContenedor.id = 'contenedor-buscador-productos';
-                
-                // Insertar después del selector de cliente
-                const formRemision = document.getElementById('remisionesContent') || 
-                                    document.querySelector('[id*="remision"]');
-                if (formRemision) {
-                    formRemision.insertBefore(nuevoContenedor, formRemision.children[2]);
+                if (typeof firebase !== 'undefined' && firebase.firestore && window.db) {
+                    console.log('✅ Firebase listo');
+                    state.firebaseReady = true;
+                    iniciarSistema();
+                } else {
+                    console.log(`⏳ Esperando Firebase (intento ${intentos + 1})...`);
+                    setTimeout(() => esperarFirebase(intentos + 1), CONFIG.delays.firebase);
                 }
             }
             
-            const html = `
-                <div style="margin: 20px 0;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151;">
-                        Buscar Producto:
-                    </label>
-                    <div style="position: relative;">
-                        <input 
-                            type="text" 
-                            id="buscador-producto-remision"
-                            placeholder="Selecciona primero un cliente"
-                            disabled
-                            autocomplete="off"
-                            style="width: 100%; padding: 12px; font-size: 15px; border: 2px solid #d1d5db; border-radius: 8px; transition: border 0.2s;"
-                            onfocus="this.style.borderColor='#3b82f6'"
-                            onblur="setTimeout(() => {this.style.borderColor='#d1d5db'; document.getElementById('resultados-busqueda-productos').style.display='none'}, 200)"
-                            oninput="window.buscarProductosRemision(this.value)"
-                        />
-                        <div id="resultados-busqueda-productos" 
-                             style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 2px solid #3b82f6; border-top: none; border-radius: 0 0 8px 8px; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                        </div>
-                    </div>
-                    <div style="margin-top: 8px;">
-                        <label style="display: inline-block; margin-right: 16px; color: #6b7280; font-size: 14px;">
-                            <input type="number" id="cantidad-producto-remision" value="1" min="1" 
-                                   style="width: 60px; padding: 6px; text-align: center; border: 1px solid #d1d5db; border-radius: 4px; margin-right: 4px;">
-                            Cantidad
-                        </label>
-                        <button onclick="window.agregarProductoARemision()" 
-                                id="btn-agregar-producto-rem"
-                                disabled
-                                style="background: #10b981; color: white; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; opacity: 0.5;">
-                            ➕ Agregar
-                        </button>
-                    </div>
-                </div>
-
-                <div id="tabla-productos-remision-container" style="margin-top: 20px;">
-                    <!-- Aquí se mostrará la tabla de productos agregados -->
-                </div>
-            `;
+            // ==========================================
+            // 2. INICIAR SISTEMA
+            // ==========================================
             
-            document.getElementById('contenedor-buscador-productos').innerHTML = html;
-        }
-
-        window.buscarProductosRemision = function(texto) {
-            const resultadosDiv = document.getElementById('resultados-busqueda-productos');
-            
-            if (!texto || texto.length < 2) {
-                resultadosDiv.style.display = 'none';
-                return;
+            function iniciarSistema() {
+                console.log('🚀 Iniciando sistema de productos...');
+                cargarCatalogoProductos()
+                    .then(() => {
+                        crearInterfaz();
+                        conectarEventos();
+                    })
+                    .catch(err => {
+                        console.error('❌ Error iniciando sistema:', err);
+                    });
             }
             
-            const textoLower = texto.toLowerCase();
+            // ==========================================
+            // 3. CARGAR CATÁLOGO
+            // ==========================================
             
-            // Filtrar productos que tienen precio para el cliente actual
-            const productosConPrecio = catalogoProductosCache.filter(prod => 
-                preciosClienteActualCache[prod.codigo]
-            );
-            
-            // Buscar por código o nombre
-            const resultados = productosConPrecio.filter(prod => 
-                prod.codigo.toLowerCase().includes(textoLower) ||
-                prod.nombre.toLowerCase().includes(textoLower)
-            );
-            
-            if (resultados.length === 0) {
-                resultadosDiv.innerHTML = `
-                    <div style="padding: 12px; text-align: center; color: #6b7280;">
-                        No se encontraron productos
-                    </div>
-                `;
-                resultadosDiv.style.display = 'block';
-                return;
-            }
-            
-            let html = '';
-            resultados.slice(0, 10).forEach(prod => {
-                const precio = preciosClienteActualCache[prod.codigo];
-                html += `
-                    <div onclick="window.seleccionarProductoRemision('${prod.codigo}', '${prod.nombre.replace(/'/g, "\\'")}', ${precio}, '${prod.unidad}')" 
-                         style="padding: 12px; cursor: pointer; border-bottom: 1px solid #e5e7eb; transition: background 0.2s;"
-                         onmouseover="this.style.background='#f3f4f6'"
-                         onmouseout="this.style.background='white'">
-                        <div style="font-weight: 600; color: #1f2937;">${prod.nombre}</div>
-                        <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">
-                            <span style="background: #e5e7eb; padding: 2px 6px; border-radius: 3px; font-family: monospace;">${prod.codigo}</span>
-                            <span style="margin: 0 8px;">•</span>
-                            <span>${prod.unidad}</span>
-                            <span style="margin: 0 8px;">•</span>
-                            <span style="color: #059669; font-weight: 700;">$${precio.toLocaleString('es-CO')}</span>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            resultadosDiv.innerHTML = html;
-            resultadosDiv.style.display = 'block';
-        };
-
-        let productoSeleccionadoTemp = null;
-
-        window.seleccionarProductoRemision = function(codigo, nombre, precio, unidad) {
-            productoSeleccionadoTemp = { codigo, nombre, precio, unidad };
-            
-            const buscador = document.getElementById('buscador-producto-remision');
-            buscador.value = `${nombre} (${codigo})`;
-            
-            const btnAgregar = document.getElementById('btn-agregar-producto-rem');
-            btnAgregar.disabled = false;
-            btnAgregar.style.opacity = '1';
-            
-            document.getElementById('resultados-busqueda-productos').style.display = 'none';
-            document.getElementById('cantidad-producto-remision').focus();
-        };
-
-        window.productosRemisionAgregados = [];
-
-        window.agregarProductoARemision = function() {
-            if (!productoSeleccionadoTemp) {
-                alert('Por favor selecciona un producto primero');
-                return;
-            }
-            
-            const cantidad = parseInt(document.getElementById('cantidad-producto-remision').value) || 1;
-            
-            // Verificar si ya existe
-            const existente = window.productosRemisionAgregados.find(p => p.codigo === productoSeleccionadoTemp.codigo);
-            if (existente) {
-                if (confirm(`El producto ${productoSeleccionadoTemp.nombre} ya fue agregado. ¿Aumentar la cantidad?`)) {
-                    existente.cantidad += cantidad;
-                }
-            } else {
-                window.productosRemisionAgregados.push({
-                    codigo: productoSeleccionadoTemp.codigo,
-                    nombre: productoSeleccionadoTemp.nombre,
-                    precio: productoSeleccionadoTemp.precio,
-                    unidad: productoSeleccionadoTemp.unidad,
-                    cantidad: cantidad
-                });
-            }
-            
-            // Limpiar
-            document.getElementById('buscador-producto-remision').value = '';
-            document.getElementById('cantidad-producto-remision').value = '1';
-            document.getElementById('btn-agregar-producto-rem').disabled = true;
-            document.getElementById('btn-agregar-producto-rem').style.opacity = '0.5';
-            productoSeleccionadoTemp = null;
-            
-            // Actualizar tabla
-            mostrarTablaProductosRemision();
-        };
-
-        function mostrarTablaProductosRemision() {
-            const container = document.getElementById('tabla-productos-remision-container');
-            
-            if (window.productosRemisionAgregados.length === 0) {
-                container.innerHTML = '';
-                return;
-            }
-            
-            let total = 0;
-            let html = `
-                <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <thead>
-                        <tr style="background: #059669; color: white;">
-                            <th style="padding: 12px; text-align: left;">CÓDIGO</th>
-                            <th style="padding: 12px; text-align: left;">DESCRIPCIÓN</th>
-                            <th style="padding: 12px; text-align: center;">CANTIDAD</th>
-                            <th style="padding: 12px; text-align: center;">BODEGA</th>
-                            <th style="padding: 12px; text-align: right;">V/UNIT</th>
-                            <th style="padding: 12px; text-align: right;">V/TOTAL</th>
-                            <th style="padding: 12px; text-align: center;">ACCIÓN</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            
-            window.productosRemisionAgregados.forEach((prod, index) => {
-                const subtotal = prod.cantidad * prod.precio;
-                total += subtotal;
-                
-                html += `
-                    <tr style="border-bottom: 1px solid #e5e7eb;">
-                        <td style="padding: 12px; font-family: monospace; font-weight: 600;">${prod.codigo}</td>
-                        <td style="padding: 12px;">${prod.nombre}</td>
-                        <td style="padding: 12px; text-align: center; font-weight: 600;">${prod.cantidad}</td>
-                        <td style="padding: 12px; text-align: center;">1</td>
-                        <td style="padding: 12px; text-align: right;">$${prod.precio.toLocaleString('es-CO')}</td>
-                        <td style="padding: 12px; text-align: right; color: #059669; font-weight: 700;">$${subtotal.toLocaleString('es-CO')}</td>
-                        <td style="padding: 12px; text-align: center;">
-                            <button onclick="window.eliminarProductoRemision(${index})" 
-                                    style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                                🗑️ Eliminar
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            });
-            
-            html += `
-                    <tr style="background: #f3f4f6; font-weight: 700;">
-                        <td colspan="5" style="padding: 12px; text-align: right; font-size: 16px;">TOTAL:</td>
-                        <td style="padding: 12px; text-align: right; color: #059669; font-size: 18px;">$${total.toLocaleString('es-CO')}</td>
-                        <td></td>
-                    </tr>
-                </tbody>
-                </table>
-            `;
-            
-            container.innerHTML = html;
-        }
-
-        window.eliminarProductoRemision = function(index) {
-            if (confirm('¿Eliminar este producto?')) {
-                window.productosRemisionAgregados.splice(index, 1);
-                mostrarTablaProductosRemision();
-            }
-        };
-
-        // Inicializar todo
-        setTimeout(function() {
-            // Cargar catálogo completo
-            cargarCatalogoCompleto();
-            
-            // Crear buscador de productos
-            crearBuscadorProductos();
-            
-            // Conectar selector de cliente
-            const selectorCliente = document.querySelector('[id*="cliente"][id*="remision"]') ||
-                                   document.getElementById('clienteRemision');
-            
-            if (selectorCliente) {
-                selectorCliente.addEventListener('change', function() {
-                    const selectedOption = this.options[this.selectedIndex];
-                    if (selectedOption && selectedOption.text) {
-                        const nombreCliente = selectedOption.text.split('-')[0].trim();
-                        if (nombreCliente) {
-                            cargarPreciosDelCliente(nombreCliente);
-                            // Limpiar productos agregados al cambiar de cliente
-                            window.productosRemisionAgregados = [];
-                            mostrarTablaProductosRemision();
+            async function cargarCatalogoProductos() {
+                try {
+                    console.log('📦 Cargando catálogo de productos...');
+                    
+                    const url = `https://api.airtable.com/v0/${CONFIG.airtable.baseId}/${encodeURIComponent(CONFIG.airtable.tables.catalogo)}`;
+                    
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${CONFIG.airtable.token}`,
+                            'Content-Type': 'application/json'
                         }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (!data.records || !Array.isArray(data.records)) {
+                        throw new Error('Formato de respuesta inválido');
+                    }
+                    
+                    state.catalogoProductos = data.records
+                        .map(record => {
+                            try {
+                                return {
+                                    codigo: String(record.fields['Código'] || '').trim(),
+                                    nombre: String(record.fields['Nombre'] || '').trim(),
+                                    unidad: String(record.fields['Unidad de Medida'] || '').trim()
+                                };
+                            } catch (e) {
+                                console.warn('⚠️ Error procesando producto:', e);
+                                return null;
+                            }
+                        })
+                        .filter(p => p && p.codigo && p.nombre);
+                    
+                    console.log(`✅ Catálogo cargado: ${state.catalogoProductos.length} productos`);
+                    return true;
+                    
+                } catch (error) {
+                    console.error('❌ Error cargando catálogo:', error.message);
+                    mostrarMensaje('Error al cargar el catálogo de productos', 'error');
+                    return false;
+                }
+            }
+            
+            // ==========================================
+            // 4. CARGAR PRECIOS POR CLIENTE
+            // ==========================================
+            
+            async function cargarPreciosCliente(nombreCliente) {
+                try {
+                    console.log(`💰 Cargando precios para: ${nombreCliente}`);
+                    
+                    state.clienteActual = nombreCliente;
+                    mostrarMensaje('Cargando productos disponibles...', 'info');
+                    
+                    const formula = `SEARCH("${nombreCliente.replace(/"/g, '\\"')}", {Nombre del cliente})`;
+                    const url = `https://api.airtable.com/v0/${CONFIG.airtable.baseId}/${encodeURIComponent(CONFIG.airtable.tables.precios)}?filterByFormula=${encodeURIComponent(formula)}`;
+                    
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${CONFIG.airtable.token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    state.preciosCliente = {};
+                    
+                    if (data.records && Array.isArray(data.records)) {
+                        data.records.forEach(record => {
+                            try {
+                                const codigo = String(record.fields['Id'] || '').trim();
+                                const precio = parseFloat(record.fields['Precio acordado']);
+                                
+                                if (codigo && !isNaN(precio) && precio > 0) {
+                                    state.preciosCliente[codigo] = precio;
+                                }
+                            } catch (e) {
+                                console.warn('⚠️ Error procesando precio:', e);
+                            }
+                        });
+                    }
+                    
+                    const count = Object.keys(state.preciosCliente).length;
+                    console.log(`✅ ${count} productos con precio disponibles`);
+                    
+                    habilitarBuscador();
+                    mostrarMensaje(`${count} productos disponibles`, 'success');
+                    
+                    setTimeout(() => ocultarMensaje(), 3000);
+                    
+                } catch (error) {
+                    console.error('❌ Error cargando precios:', error.message);
+                    mostrarMensaje('Error al cargar precios del cliente', 'error');
+                    deshabilitarBuscador();
+                }
+            }
+            
+            // ==========================================
+            // 5. CREAR INTERFAZ
+            // ==========================================
+            
+            function crearInterfaz() {
+                if (state.interfazCreada) {
+                    console.log('ℹ️ Interfaz ya existe');
+                    return;
+                }
+                
+                const contenedor = encontrarContenedorRemisiones();
+                
+                if (!contenedor) {
+                    console.warn('⚠️ Contenedor de remisiones no encontrado, reintentando...');
+                    setTimeout(crearInterfaz, CONFIG.delays.interfaz);
+                    return;
+                }
+                
+                const html = generarHTML();
+                contenedor.insertAdjacentHTML('afterbegin', html);
+                
+                state.interfazCreada = true;
+                console.log('✅ Interfaz creada correctamente');
+            }
+            
+            function encontrarContenedorRemisiones() {
+                const posibles = [
+                    document.getElementById('remisionesContent'),
+                    document.querySelector('[id*="remision"]'),
+                    document.querySelector('[id*="Remision"]'),
+                    document.querySelector('.tab-content')
+                ];
+                
+                return posibles.find(el => el !== null);
+            }
+            
+            function generarHTML() {
+                return `
+                    <div id="sistema-productos-remision" style="background: linear-gradient(to bottom, #f9fafb, #ffffff); padding: 24px; border-radius: 12px; margin: 20px 0; border: 2px solid #e5e7eb; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                        <h3 style="margin: 0 0 20px 0; color: #1f2937; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                            <span>📦</span>
+                            <span>Agregar Productos</span>
+                        </h3>
+                        
+                        <!-- Buscador -->
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 14px;">
+                                Buscar Producto:
+                            </label>
+                            <div style="position: relative;">
+                                <input 
+                                    type="text" 
+                                    id="input-buscar-producto-rem"
+                                    placeholder="Primero selecciona un cliente..."
+                                    disabled
+                                    autocomplete="off"
+                                    style="width: 100%; padding: 12px 16px; font-size: 15px; border: 2px solid #d1d5db; border-radius: 8px; background: #f3f4f6; transition: all 0.2s; outline: none;"
+                                />
+                                <div id="dropdown-productos-rem" 
+                                     style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 2px solid #3b82f6; border-top: none; border-radius: 0 0 8px 8px; max-height: 320px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Cantidad y Botón -->
+                        <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+                            <div style="flex: 0 0 auto;">
+                                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 14px;">
+                                    Cantidad:
+                                </label>
+                                <input 
+                                    type="number" 
+                                    id="input-cantidad-rem" 
+                                    value="1" 
+                                    min="1" 
+                                    style="width: 100px; padding: 10px 12px; text-align: center; border: 2px solid #d1d5db; border-radius: 6px; font-size: 16px; font-weight: 600; outline: none;"
+                                />
+                            </div>
+                            <button 
+                                id="btn-agregar-producto-rem" 
+                                disabled
+                                style="flex: 0 0 auto; background: #10b981; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 15px; cursor: not-allowed; opacity: 0.5; transition: all 0.2s; outline: none;">
+                                ➕ Agregar Producto
+                            </button>
+                        </div>
+                        
+                        <!-- Mensaje de estado -->
+                        <div id="mensaje-estado-productos" style="margin-top: 12px; padding: 12px; border-radius: 6px; font-size: 14px; display: none; font-weight: 500;">
+                        </div>
+                    </div>
+                    
+                    <!-- Tabla de productos -->
+                    <div id="tabla-productos-remision-container" style="margin-top: 20px;">
+                    </div>
+                `;
+            }
+            
+            // ==========================================
+            // 6. CONECTAR EVENTOS
+            // ==========================================
+            
+            function conectarEventos() {
+                // Eventos del buscador
+                const inputBuscador = document.getElementById('input-buscar-producto-rem');
+                if (inputBuscador) {
+                    inputBuscador.addEventListener('input', function(e) {
+                        buscarProductos(e.target.value);
+                    });
+                    
+                    inputBuscador.addEventListener('focus', function() {
+                        if (!this.disabled) {
+                            this.style.borderColor = '#3b82f6';
+                            this.style.background = 'white';
+                        }
+                    });
+                    
+                    inputBuscador.addEventListener('blur', function() {
+                        this.style.borderColor = '#d1d5db';
+                        if (this.disabled) {
+                            this.style.background = '#f3f4f6';
+                        }
+                        setTimeout(() => {
+                            const dropdown = document.getElementById('dropdown-productos-rem');
+                            if (dropdown) dropdown.style.display = 'none';
+                        }, 200);
+                    });
+                }
+                
+                // Evento del botón agregar
+                const btnAgregar = document.getElementById('btn-agregar-producto-rem');
+                if (btnAgregar) {
+                    btnAgregar.addEventListener('click', agregarProducto);
+                }
+                
+                // Conectar selector de cliente
+                setTimeout(conectarSelectorCliente, CONFIG.delays.selector);
+            }
+            
+            function conectarSelectorCliente() {
+                const selectores = document.querySelectorAll('select, input[type="text"]');
+                let conectado = false;
+                
+                selectores.forEach(selector => {
+                    const id = (selector.id || '').toLowerCase();
+                    const name = (selector.name || '').toLowerCase();
+                    const placeholder = (selector.placeholder || '').toLowerCase();
+                    
+                    if (id.includes('cliente') || name.includes('cliente') || placeholder.includes('cliente')) {
+                        selector.addEventListener('change', function() {
+                            manejarCambioCliente(this);
+                        });
+                        
+                        console.log(`✅ Conectado a selector: ${selector.id || selector.name || 'sin nombre'}`);
+                        conectado = true;
                     }
                 });
-                console.log('✅ Sistema de búsqueda de productos inicializado');
+                
+                if (!conectado) {
+                    console.warn('⚠️ No se encontró selector de cliente, reintentando...');
+                    setTimeout(conectarSelectorCliente, CONFIG.delays.selector);
+                }
             }
-        }, 2000);
-
-        console.log('✅ Buscador de productos estilo dropdown cargado');
+            
+            function manejarCambioCliente(selector) {
+                let nombreCliente = '';
+                
+                if (selector.tagName === 'SELECT') {
+                    const option = selector.options[selector.selectedIndex];
+                    nombreCliente = option ? option.text : '';
+                } else {
+                    nombreCliente = selector.value;
+                }
+                
+                if (nombreCliente) {
+                    // Limpiar separadores comunes
+                    nombreCliente = nombreCliente.split('-')[0].split('|')[0].trim();
+                    
+                    if (nombreCliente.length > 2) {
+                        console.log(`👤 Cliente seleccionado: ${nombreCliente}`);
+                        
+                        // Limpiar productos agregados
+                        state.productosAgregados = [];
+                        actualizarTablaProductos();
+                        
+                        // Cargar precios
+                        cargarPreciosCliente(nombreCliente);
+                    }
+                }
+            }
+            
+            // ==========================================
+            // 7. BUSCAR PRODUCTOS
+            // ==========================================
+            
+            function buscarProductos(texto) {
+                const dropdown = document.getElementById('dropdown-productos-rem');
+                if (!dropdown) return;
+                
+                if (!texto || texto.length < 2) {
+                    dropdown.style.display = 'none';
+                    return;
+                }
+                
+                const textoLower = texto.toLowerCase().trim();
+                
+                // Filtrar solo productos con precio
+                const productosConPrecio = state.catalogoProductos.filter(p => 
+                    state.preciosCliente[p.codigo]
+                );
+                
+                // Buscar por código o nombre
+                const resultados = productosConPrecio.filter(p =>
+                    p.codigo.toLowerCase().includes(textoLower) ||
+                    p.nombre.toLowerCase().includes(textoLower)
+                );
+                
+                if (resultados.length === 0) {
+                    dropdown.innerHTML = `
+                        <div style="padding: 16px; text-align: center; color: #6b7280; font-size: 14px;">
+                            No se encontraron productos
+                        </div>
+                    `;
+                    dropdown.style.display = 'block';
+                    return;
+                }
+                
+                renderizarResultados(resultados.slice(0, 10), dropdown);
+            }
+            
+            function renderizarResultados(productos, dropdown) {
+                const html = productos.map(p => {
+                    const precio = state.preciosCliente[p.codigo];
+                    const precioFormateado = new Intl.NumberFormat('es-CO', {
+                        style: 'currency',
+                        currency: 'COP',
+                        minimumFractionDigits: 0
+                    }).format(precio);
+                    
+                    // Escapar comillas para evitar errores
+                    const nombreSeguro = p.nombre.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    const unidadSegura = p.unidad.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    
+                    return `
+                        <div onclick="window.__seleccionarProductoRem('${p.codigo}', '${nombreSeguro}', ${precio}, '${unidadSegura}')" 
+                             style="padding: 12px; cursor: pointer; border-bottom: 1px solid #e5e7eb; transition: background 0.15s;"
+                             onmouseover="this.style.background='#f3f4f6'"
+                             onmouseout="this.style.background='white'">
+                            <div style="font-weight: 600; color: #1f2937; margin-bottom: 4px;">${p.nombre}</div>
+                            <div style="font-size: 13px; color: #6b7280; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                                <span style="background: #e5e7eb; padding: 2px 8px; border-radius: 3px; font-family: monospace; font-size: 12px; font-weight: 600;">${p.codigo}</span>
+                                <span>•</span>
+                                <span>${p.unidad}</span>
+                                <span>•</span>
+                                <span style="color: #059669; font-weight: 700;">${precioFormateado}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                dropdown.innerHTML = html;
+                dropdown.style.display = 'block';
+            }
+            
+            // ==========================================
+            // 8. SELECCIONAR PRODUCTO
+            // ==========================================
+            
+            window.__seleccionarProductoRem = function(codigo, nombre, precio, unidad) {
+                state.productoSeleccionado = { codigo, nombre, precio, unidad };
+                
+                const inputBuscador = document.getElementById('input-buscar-producto-rem');
+                if (inputBuscador) {
+                    inputBuscador.value = `${nombre} (${codigo})`;
+                }
+                
+                const dropdown = document.getElementById('dropdown-productos-rem');
+                if (dropdown) {
+                    dropdown.style.display = 'none';
+                }
+                
+                habilitarBotonAgregar();
+                
+                const inputCantidad = document.getElementById('input-cantidad-rem');
+                if (inputCantidad) {
+                    inputCantidad.focus();
+                    inputCantidad.select();
+                }
+            };
+            
+            // ==========================================
+            // 9. AGREGAR PRODUCTO
+            // ==========================================
+            
+            function agregarProducto() {
+                if (!state.productoSeleccionado) {
+                    mostrarMensaje('Selecciona un producto primero', 'error');
+                    return;
+                }
+                
+                const inputCantidad = document.getElementById('input-cantidad-rem');
+                const cantidad = parseInt(inputCantidad.value) || 1;
+                
+                if (cantidad < 1) {
+                    mostrarMensaje('La cantidad debe ser mayor a 0', 'error');
+                    return;
+                }
+                
+                // Verificar si ya existe
+                const existente = state.productosAgregados.find(p => 
+                    p.codigo === state.productoSeleccionado.codigo
+                );
+                
+                if (existente) {
+                    existente.cantidad += cantidad;
+                    mostrarMensaje(`Cantidad actualizada: ${existente.cantidad}`, 'success');
+                } else {
+                    state.productosAgregados.push({
+                        ...state.productoSeleccionado,
+                        cantidad
+                    });
+                    mostrarMensaje('Producto agregado correctamente', 'success');
+                }
+                
+                // Limpiar
+                limpiarFormulario();
+                
+                // Actualizar tabla
+                actualizarTablaProductos();
+                
+                // Ocultar mensaje después de 2 segundos
+                setTimeout(ocultarMensaje, 2000);
+            }
+            
+            function limpiarFormulario() {
+                const inputBuscador = document.getElementById('input-buscar-producto-rem');
+                if (inputBuscador) {
+                    inputBuscador.value = '';
+                    inputBuscador.focus();
+                }
+                
+                const inputCantidad = document.getElementById('input-cantidad-rem');
+                if (inputCantidad) {
+                    inputCantidad.value = '1';
+                }
+                
+                state.productoSeleccionado = null;
+                deshabilitarBotonAgregar();
+            }
+            
+            // ==========================================
+            // 10. TABLA DE PRODUCTOS
+            // ==========================================
+            
+            function actualizarTablaProductos() {
+                const container = document.getElementById('tabla-productos-remision-container');
+                if (!container) return;
+                
+                if (state.productosAgregados.length === 0) {
+                    container.innerHTML = '';
+                    window.productosRemisionFinal = [];
+                    return;
+                }
+                
+                let totalGeneral = 0;
+                
+                const filas = state.productosAgregados.map((p, index) => {
+                    const subtotal = p.cantidad * p.precio;
+                    totalGeneral += subtotal;
+                    
+                    const precioFormateado = new Intl.NumberFormat('es-CO', {
+                        style: 'currency',
+                        currency: 'COP',
+                        minimumFractionDigits: 0
+                    }).format(p.precio);
+                    
+                    const subtotalFormateado = new Intl.NumberFormat('es-CO', {
+                        style: 'currency',
+                        currency: 'COP',
+                        minimumFractionDigits: 0
+                    }).format(subtotal);
+                    
+                    return `
+                        <tr style="border-bottom: 1px solid #e5e7eb; transition: background 0.15s;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
+                            <td style="padding: 12px; font-family: 'Courier New', monospace; font-weight: 600; color: #374151;">${p.codigo}</td>
+                            <td style="padding: 12px; color: #1f2937;">${p.nombre}</td>
+                            <td style="padding: 12px; text-align: center; font-weight: 600; color: #1f2937;">${p.cantidad}</td>
+                            <td style="padding: 12px; text-align: center; color: #6b7280; font-weight: 600;">1</td>
+                            <td style="padding: 12px; text-align: right; color: #374151; font-weight: 500;">${precioFormateado}</td>
+                            <td style="padding: 12px; text-align: right; color: #059669; font-weight: 700; font-size: 15px;">${subtotalFormateado}</td>
+                            <td style="padding: 12px; text-align: center;">
+                                <button onclick="window.__eliminarProductoRem(${index})" 
+                                        style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 13px; transition: background 0.2s;"
+                                        onmouseover="this.style.background='#dc2626'"
+                                        onmouseout="this.style.background='#ef4444'">
+                                    🗑️ Eliminar
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                const totalFormateado = new Intl.NumberFormat('es-CO', {
+                    style: 'currency',
+                    currency: 'COP',
+                    minimumFractionDigits: 0
+                }).format(totalGeneral);
+                
+                const html = `
+                    <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                        <thead>
+                            <tr style="background: linear-gradient(to right, #059669, #047857); color: white;">
+                                <th style="padding: 14px 12px; text-align: left; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Código</th>
+                                <th style="padding: 14px 12px; text-align: left; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Descripción</th>
+                                <th style="padding: 14px 12px; text-align: center; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Cantidad</th>
+                                <th style="padding: 14px 12px; text-align: center; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Bodega</th>
+                                <th style="padding: 14px 12px; text-align: right; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">V/Unit</th>
+                                <th style="padding: 14px 12px; text-align: right; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">V/Total</th>
+                                <th style="padding: 14px 12px; text-align: center; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${filas}
+                            <tr style="background: linear-gradient(to right, #f3f4f6, #e5e7eb);">
+                                <td colspan="5" style="padding: 16px 12px; text-align: right; font-weight: 700; font-size: 17px; color: #1f2937; text-transform: uppercase; letter-spacing: 0.5px;">Total:</td>
+                                <td style="padding: 16px 12px; text-align: right; color: #059669; font-weight: 700; font-size: 20px;">${totalFormateado}</td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `;
+                
+                container.innerHTML = html;
+                
+                // Exponer productos para uso externo (ej: generar Excel)
+                window.productosRemisionFinal = state.productosAgregados.map(p => ({
+                    codigo: p.codigo,
+                    nombre: p.nombre,
+                    cantidad: p.cantidad,
+                    precio: p.precio,
+                    unidad: p.unidad,
+                    total: p.cantidad * p.precio
+                }));
+            }
+            
+            window.__eliminarProductoRem = function(index) {
+                if (confirm('¿Eliminar este producto de la remisión?')) {
+                    state.productosAgregados.splice(index, 1);
+                    actualizarTablaProductos();
+                    mostrarMensaje('Producto eliminado', 'info');
+                    setTimeout(ocultarMensaje, 2000);
+                }
+            };
+            
+            // ==========================================
+            // 11. FUNCIONES AUXILIARES
+            // ==========================================
+            
+            function habilitarBuscador() {
+                const input = document.getElementById('input-buscar-producto-rem');
+                if (input) {
+                    input.disabled = false;
+                    input.placeholder = 'Escribe código o nombre del producto...';
+                    input.style.background = 'white';
+                    input.style.cursor = 'text';
+                }
+            }
+            
+            function deshabilitarBuscador() {
+                const input = document.getElementById('input-buscar-producto-rem');
+                if (input) {
+                    input.disabled = true;
+                    input.value = '';
+                    input.placeholder = 'Primero selecciona un cliente...';
+                    input.style.background = '#f3f4f6';
+                    input.style.cursor = 'not-allowed';
+                }
+                
+                const dropdown = document.getElementById('dropdown-productos-rem');
+                if (dropdown) {
+                    dropdown.style.display = 'none';
+                }
+            }
+            
+            function habilitarBotonAgregar() {
+                const btn = document.getElementById('btn-agregar-producto-rem');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                    btn.style.background = '#10b981';
+                }
+            }
+            
+            function deshabilitarBotonAgregar() {
+                const btn = document.getElementById('btn-agregar-producto-rem');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.5';
+                    btn.style.cursor = 'not-allowed';
+                    btn.style.background = '#10b981';
+                }
+            }
+            
+            function mostrarMensaje(texto, tipo) {
+                const mensaje = document.getElementById('mensaje-estado-productos');
+                if (!mensaje) return;
+                
+                const estilos = {
+                    info: { bg: '#dbeafe', color: '#1e40af', border: '#93c5fd' },
+                    success: { bg: '#d1fae5', color: '#065f46', border: '#6ee7b7' },
+                    error: { bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' }
+                };
+                
+                const estilo = estilos[tipo] || estilos.info;
+                
+                mensaje.style.background = estilo.bg;
+                mensaje.style.color = estilo.color;
+                mensaje.style.border = `2px solid ${estilo.border}`;
+                mensaje.textContent = texto;
+                mensaje.style.display = 'block';
+            }
+            
+            function ocultarMensaje() {
+                const mensaje = document.getElementById('mensaje-estado-productos');
+                if (mensaje) {
+                    mensaje.style.display = 'none';
+                }
+            }
+            
+            // ==========================================
+            // 12. INICIAR
+            // ==========================================
+            
+            esperarFirebase();
+            
+        })();
+        
+        console.log('✅ Sistema de productos cargado (versión sin errores)');
     </script>
 </body>
 </html>
