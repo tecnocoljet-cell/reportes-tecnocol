@@ -3870,6 +3870,265 @@
         
         // Confirm script loaded
         console.log('✅ SCRIPT COMPLETAMENTE CARGADO');
+
+        // ==========================================
+        // CARGA DE PRODUCTOS PARA REMISIONES
+        // ==========================================
+        
+        const AIRTABLE_CONFIG_REMISIONES = {
+            token: 'patTxoLSfgJZYsfoa.a30cdbab9572e691d72c75c9ccfd23bd6d40ae4be7278a2b725961475c30f01b',
+            baseId: 'appZR5HyyKvRk6rhJ'
+        };
+
+        async function cargarProductosParaRemision(nombreCliente) {
+            console.log('📦 Cargando productos para:', nombreCliente);
+            
+            try {
+                const headers = {
+                    'Authorization': `Bearer ${AIRTABLE_CONFIG_REMISIONES.token}`
+                };
+                
+                // Cargar catálogo
+                const urlCatalogo = `https://api.airtable.com/v0/${AIRTABLE_CONFIG_REMISIONES.baseId}/Catálogo de Productos`;
+                const resCatalogo = await fetch(urlCatalogo, { headers });
+                const catalogoData = await resCatalogo.json();
+                
+                // Cargar precios del cliente
+                const formula = encodeURIComponent(`SEARCH("${nombreCliente}",{Nombre del cliente})`);
+                const urlPrecios = `https://api.airtable.com/v0/${AIRTABLE_CONFIG_REMISIONES.baseId}/Precios por Cliente?filterByFormula=${formula}`;
+                const resPrecios = await fetch(urlPrecios, { headers });
+                const preciosData = await resPrecios.json();
+                
+                // Crear mapa de precios
+                const mapPrecios = {};
+                if (preciosData.records) {
+                    preciosData.records.forEach(rec => {
+                        const codigo = rec.fields['Id'];
+                        const precio = rec.fields['Precio acordado'];
+                        if (codigo && precio) {
+                            mapPrecios[codigo] = precio;
+                        }
+                    });
+                }
+                
+                // Filtrar productos que tienen precio
+                const productosDisponibles = [];
+                if (catalogoData.records) {
+                    catalogoData.records.forEach(rec => {
+                        const codigo = rec.fields['Código'];
+                        if (codigo && mapPrecios[codigo]) {
+                            productosDisponibles.push({
+                                codigo: codigo,
+                                nombre: rec.fields['Nombre'] || '',
+                                precio: mapPrecios[codigo],
+                                unidad: rec.fields['Unidad de Medida'] || ''
+                            });
+                        }
+                    });
+                }
+                
+                mostrarProductosRemision(productosDisponibles);
+                
+            } catch (error) {
+                console.error('❌ Error cargando productos:', error);
+                mostrarMensajeError('Error al cargar productos: ' + error.message);
+            }
+        }
+
+        function mostrarProductosRemision(productos) {
+            let container = document.getElementById('contenedor-productos-remision');
+            
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'contenedor-productos-remision';
+                
+                const formRemision = document.getElementById('remisionesContent') || 
+                                    document.querySelector('[id*="remision"]');
+                if (formRemision) {
+                    formRemision.insertBefore(container, formRemision.firstChild);
+                }
+            }
+            
+            if (productos.length === 0) {
+                container.innerHTML = `
+                    <div style="background: #fef3c7; border: 2px solid #fbbf24; border-radius: 8px; padding: 16px; margin: 16px 0;">
+                        <p style="color: #92400e; text-align: center; margin: 0;">
+                            ⚠️ No hay productos configurados para este cliente
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div style="background: white; border-radius: 12px; padding: 20px; margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h3 style="margin: 0; color: #1f2937; font-size: 18px; font-weight: 600;">
+                            📦 Productos Disponibles (${productos.length})
+                        </h3>
+                        <button onclick="window.seleccionarTodosProductosRemision(true)" 
+                                style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                            ✓ Seleccionar Todos
+                        </button>
+                    </div>
+                    <div style="max-height: 400px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px;">
+            `;
+            
+            productos.forEach((prod, index) => {
+                html += `
+                    <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; margin-bottom: 8px; background: #f9fafb;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" 
+                                   id="prod_rem_${index}" 
+                                   data-codigo="${prod.codigo}"
+                                   data-nombre="${prod.nombre.replace(/"/g, '&quot;')}"
+                                   data-precio="${prod.precio}"
+                                   data-unidad="${prod.unidad}"
+                                   onchange="window.toggleProductoRemision(${index})"
+                                   style="margin-right: 12px; width: 18px; height: 18px; cursor: pointer;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; color: #1f2937; margin-bottom: 4px;">${prod.nombre}</div>
+                                <div style="font-size: 13px; color: #6b7280;">
+                                    <span style="background: #e5e7eb; padding: 2px 8px; border-radius: 4px; font-family: monospace;">
+                                        ${prod.codigo}
+                                    </span>
+                                    <span style="margin-left: 8px;">${prod.unidad}</span>
+                                </div>
+                                <div style="color: #059669; font-weight: 700; font-size: 16px; margin-top: 4px;">
+                                    $${prod.precio.toLocaleString('es-CO')}
+                                </div>
+                            </div>
+                            <input type="number" 
+                                   id="qty_rem_${index}" 
+                                   value="1" 
+                                   min="1" 
+                                   disabled
+                                   style="width: 70px; padding: 8px; text-align: center; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; font-weight: 600;">
+                        </label>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 2px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                        <span id="contador-seleccionados-rem" style="color: #6b7280; font-size: 14px;">
+                            0 productos seleccionados
+                        </span>
+                        <button onclick="window.agregarProductosSeleccionadosRemision()" 
+                                id="btn-agregar-productos-rem"
+                                disabled
+                                style="background: #10b981; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 16px; opacity: 0.5;">
+                            ➕ Agregar Seleccionados
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+            window.productosDisponiblesRemision = productos;
+        }
+
+        window.toggleProductoRemision = function(index) {
+            const checkbox = document.getElementById(`prod_rem_${index}`);
+            const qtyInput = document.getElementById(`qty_rem_${index}`);
+            
+            if (checkbox && qtyInput) {
+                qtyInput.disabled = !checkbox.checked;
+                if (checkbox.checked) {
+                    qtyInput.focus();
+                }
+            }
+            
+            actualizarContadorRemision();
+        };
+
+        window.seleccionarTodosProductosRemision = function(seleccionar) {
+            const checkboxes = document.querySelectorAll('[id^="prod_rem_"]');
+            checkboxes.forEach((cb, i) => {
+                cb.checked = seleccionar;
+                window.toggleProductoRemision(i);
+            });
+        };
+
+        function actualizarContadorRemision() {
+            const checkboxes = document.querySelectorAll('[id^="prod_rem_"]:checked');
+            const contador = document.getElementById('contador-seleccionados-rem');
+            const btnAgregar = document.getElementById('btn-agregar-productos-rem');
+            
+            if (contador) {
+                contador.textContent = `${checkboxes.length} producto(s) seleccionado(s)`;
+            }
+            
+            if (btnAgregar) {
+                btnAgregar.disabled = checkboxes.length === 0;
+                btnAgregar.style.opacity = checkboxes.length === 0 ? '0.5' : '1';
+                btnAgregar.style.cursor = checkboxes.length === 0 ? 'not-allowed' : 'pointer';
+            }
+        }
+
+        window.agregarProductosSeleccionadosRemision = function() {
+            const seleccionados = [];
+            
+            window.productosDisponiblesRemision.forEach((prod, i) => {
+                const checkbox = document.getElementById(`prod_rem_${i}`);
+                if (checkbox && checkbox.checked) {
+                    const qty = parseInt(document.getElementById(`qty_rem_${i}`).value) || 1;
+                    seleccionados.push({
+                        codigo: prod.codigo,
+                        nombre: prod.nombre,
+                        cantidad: qty,
+                        precio: prod.precio,
+                        unidad: prod.unidad
+                    });
+                }
+            });
+            
+            if (seleccionados.length === 0) {
+                alert('Por favor selecciona al menos un producto');
+                return;
+            }
+            
+            window.productosRemisionSeleccionados = seleccionados;
+            console.log('✅ Productos agregados:', seleccionados);
+            
+            alert(`✅ ${seleccionados.length} producto(s) agregado(s) correctamente`);
+            window.seleccionarTodosProductosRemision(false);
+        };
+
+        function mostrarMensajeError(mensaje) {
+            const container = document.getElementById('contenedor-productos-remision');
+            if (container) {
+                container.innerHTML = `
+                    <div style="background: #fee2e2; border: 2px solid #ef4444; border-radius: 8px; padding: 16px; margin: 16px 0;">
+                        <p style="color: #991b1b; margin: 0;">❌ ${mensaje}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Conectar al selector de cliente de remisiones
+        setTimeout(function() {
+            const selectorClienteRemision = document.querySelector('[id*="cliente"][id*="remision"]') ||
+                                           document.getElementById('clienteRemision');
+            
+            if (selectorClienteRemision) {
+                selectorClienteRemision.addEventListener('change', function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    if (selectedOption && selectedOption.text) {
+                        const nombreCliente = selectedOption.text.split('-')[0].trim();
+                        if (nombreCliente) {
+                            cargarProductosParaRemision(nombreCliente);
+                        }
+                    }
+                });
+                console.log('✅ Selector de cliente de remisiones conectado');
+            } else {
+                console.warn('⚠️ Selector de cliente no encontrado');
+            }
+        }, 1500);
+
+        console.log('✅ Sistema de productos para remisiones cargado');
     </script>
 </body>
 </html>
