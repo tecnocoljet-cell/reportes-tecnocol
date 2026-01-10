@@ -18,7 +18,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #6ba83e 0%, #4a7c2c 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -56,7 +56,7 @@
         }
 
         .role-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #6ba83e 0%, #4a7c2c 100%);
             color: white;
             border: none;
             padding: 20px 40px;
@@ -65,12 +65,12 @@
             font-weight: 600;
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 15px rgba(107, 168, 62, 0.4);
         }
 
         .role-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+            box-shadow: 0 6px 20px rgba(107, 168, 62, 0.6);
         }
 
         .main-content {
@@ -445,23 +445,66 @@
     <div class="container">
         <!-- Role Selection -->
         <div class="role-selector" id="roleSelector">
-            <h1>🔧 Sistema de Reportes de Mantenimiento</h1>
-            <p>Selecciona tu rol para continuar</p>
+            <div style="text-align: center; margin-bottom: 20px;">
+                <img src="https://i.imgur.com/placeholder.jpg" alt="TECNOCOL" style="max-width: 200px; height: auto;" onerror="this.style.display='none'">
+            </div>
+            <h1 style="font-size: 28px; margin-bottom: 10px;">Sistema Operativo Empresarial</h1>
+            <p style="font-size: 16px; margin-top: 5px; font-weight: 500; opacity: 0.95;">Sistema de Mantenimiento y Remisiones</p>
+            <p style="font-size: 14px; opacity: 0.8; margin-top: 15px;">Selecciona tu rol para continuar</p>
             <div class="role-buttons">
                 <button class="role-btn" onclick="selectRole('employee')">
-                    👷 Empleado<br><small>Crear Reportes</small>
+                    👷 Empleado
                 </button>
                 <button class="role-btn" onclick="selectRole('admin')">
-                    👨‍💼 Administrador<br><small>Aprobar Reportes</small>
+                    👨‍💼 Administrador
                 </button>
             </div>
+            <p style="margin-top: 30px; font-size: 12px; opacity: 0.7;">Sistema Operativo Empresarial</p>
         </div>
 
         <!-- Employee View -->
         <div class="main-content" id="employeeView">
+            <!-- Employee Menu Selection -->
+            <div id="employeeMenuSelection" style="display: block;">
+                <div class="header">
+                    <h2>👷 Menú de Empleado</h2>
+                    <button class="back-btn" onclick="backToRoleSelector()">← Volver</button>
+                </div>
+                
+                <div style="display: flex; gap: 20px; margin-top: 40px; justify-content: center; flex-wrap: wrap;">
+                    <button onclick="selectEmployeeOption('remisiones')" style="flex: 1; min-width: 250px; max-width: 400px; padding: 40px 30px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); transition: transform 0.2s;">
+                        <div style="font-size: 48px; margin-bottom: 15px;">📦</div>
+                        <div style="font-size: 20px; font-weight: 600; margin-bottom: 8px;">Información de Entrega</div>
+                        <div style="font-size: 14px; opacity: 0.9;">Gestión de remisiones</div>
+                    </button>
+                    
+                    <button onclick="selectEmployeeOption('reportes')" style="flex: 1; min-width: 250px; max-width: 400px; padding: 40px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); transition: transform 0.2s;">
+                        <div style="font-size: 48px; margin-bottom: 15px;">📋</div>
+                        <div style="font-size: 20px; font-weight: 600; margin-bottom: 8px;">Reportera Virtual</div>
+                        <div style="font-size: 14px; opacity: 0.9;">Reportes de mantenimiento</div>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Remisiones Section (new) -->
+            <div id="employeeRemisiones" style="display: none;">
+                <div class="header">
+                    <h2>📦 Información de Entrega</h2>
+                    <button class="back-btn" onclick="backToEmployeeMenu()">← Volver</button>
+                </div>
+                
+                <h3 style="color: #333; margin: 30px 0 20px 0;">Pedidos en Lista de Entrega</h3>
+                
+                <div id="remisionesList" style="display: grid; gap: 15px;">
+                    <!-- Remisiones will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Reportes Section (existing) -->
+            <div id="employeeReportes" style="display: none;">
             <div class="header">
                 <h2>📋 Nuevo Reporte de Servicio</h2>
-                <button class="back-btn" onclick="backToRoleSelector()">← Volver</button>
+                <button class="back-btn" onclick="backToEmployeeMenu()">← Volver</button>
             </div>
 
             <div class="success-message" id="successMessage"></div>
@@ -683,7 +726,8 @@
 
                 <button type="submit" class="submit-btn" id="submitBtn" style="display:none;">📤 Enviar Reporte Completo para Aprobación</button>
             </form>
-        </div>
+            </div> <!-- End employeeReportes -->
+        </div> <!-- End employeeView -->
 
         <!-- Admin View -->
         <div class="main-content" id="adminView">
@@ -718,6 +762,9 @@
                     <button id="tabEquipos" onclick="switchAdminTab('equipos')" style="padding: 15px 30px; background: transparent; border: none; border-bottom: 3px solid transparent; color: #666; font-weight: 600; cursor: pointer; font-size: 16px;">
                         ⚙️ Gestión de Equipos
                     </button>
+                    <button id="tabRemisiones" onclick="switchAdminTab('remisiones')" style="padding: 15px 30px; background: transparent; border: none; border-bottom: 3px solid transparent; color: #666; font-weight: 600; cursor: pointer; font-size: 16px;">
+                        📦 Crear Remisiones
+                    </button>
                 </div>
 
                 <!-- Tab Content: Reportes -->
@@ -733,22 +780,38 @@
 
                 <!-- Tab Content: Gestión de Equipos -->
                 <div id="contentEquipos" style="display: none;">
-                    <h3 style="color: #333; margin-bottom: 20px;">Gestión de Equipos por Cliente</h3>
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; margin-bottom: 30px; color: white;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 24px;">⚙️ Gestión de Equipos</h3>
+                        <p style="margin: 0; opacity: 0.9; font-size: 14px;">Administra los equipos de tus clientes de forma centralizada</p>
+                    </div>
                     
-                    <div class="form-group" style="max-width: 500px;">
-                        <label>Selecciona un Cliente</label>
-                        <select id="adminClientSelect" onchange="loadClientEquipments()">
-                            <option value="">Selecciona un cliente...</option>
-                        </select>
+                    <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; color: #333; margin-bottom: 12px; font-size: 16px;">
+                            🏢 Selecciona un Cliente
+                        </label>
+                        <div style="position: relative;">
+                            <input 
+                                type="text" 
+                                id="adminClientSearch" 
+                                placeholder="🔍 Buscar cliente por nombre o NIT..." 
+                                oninput="searchAdminClients(this.value)"
+                                style="width: 100%; padding: 14px 20px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; transition: all 0.3s;"
+                                onfocus="this.style.borderColor='#667eea'"
+                                onblur="this.style.borderColor='#e0e0e0'"
+                            >
+                            <div id="adminClientSearchResults" style="position: absolute; width: 100%; max-height: 300px; overflow-y: auto; background: white; border: 2px solid #e0e0e0; border-radius: 8px; margin-top: 5px; display: none; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></div>
+                        </div>
+                        <input type="hidden" id="adminSelectedClientId">
+                        <div id="adminSelectedClientInfo" style="margin-top: 15px;"></div>
                     </div>
 
-                    <div id="adminEquipmentActions" style="display: none; margin: 20px 0;">
-                        <button onclick="openAdminNewEquipmentModal()" class="new-equipment-btn">
-                            + Agregar Nuevo Equipo para este Cliente
+                    <div id="adminEquipmentActions" style="display: none; margin-bottom: 25px;">
+                        <button onclick="openAdminNewEquipmentModal()" style="padding: 14px 28px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                            ➕ Agregar Nuevo Equipo
                         </button>
                     </div>
 
-                    <div id="clientEquipmentsList" style="margin-top: 30px;"></div>
+                    <div id="clientEquipmentsList"></div>
                 </div>
             </div>
         </div>
@@ -854,6 +917,101 @@
             </form>
         </div>
     </div>
+    
+                <!-- Tab Content: Crear Remisiones -->
+                <div id="contentRemisiones" style="display: none;">
+                    <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; border-radius: 12px; margin-bottom: 30px; color: white;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 24px;">📦 Gestión de Remisiones</h3>
+                        <p style="margin: 0; opacity: 0.9; font-size: 14px;">Crea y administra las remisiones de entrega para tus clientes</p>
+                    </div>
+                    
+                    <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 30px;">
+                        <h4 style="color: #333; margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">📝 Nueva Remisión</h4>
+                        
+                        <form id="remisionForm">
+                            <!-- Cliente Section -->
+                            <div style="margin-bottom: 25px;">
+                                <label style="display: block; font-weight: 600; color: #333; margin-bottom: 12px; font-size: 16px;">
+                                    🏢 Cliente *
+                                </label>
+                                <div style="position: relative;">
+                                    <input 
+                                        type="text" 
+                                        id="remisionClientSearch" 
+                                        placeholder="🔍 Buscar cliente por nombre o NIT..." 
+                                        oninput="searchClientsForRemision(this.value)"
+                                        style="width: 100%; padding: 14px 20px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; transition: all 0.3s;"
+                                        onfocus="this.style.borderColor='#10b981'"
+                                        onblur="this.style.borderColor='#e0e0e0'"
+                                    >
+                                    <div id="remisionClientResults" style="position: absolute; width: 100%; max-height: 300px; overflow-y: auto; background: white; border: 2px solid #e0e0e0; border-radius: 8px; margin-top: 5px; display: none; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></div>
+                                </div>
+                                <input type="hidden" id="remisionSelectedClientId">
+                                <div id="remisionSelectedClient" style="margin-top: 15px;"></div>
+                            </div>
+                            
+                            <!-- Número de Remisión -->
+                            <div style="margin-bottom: 25px;">
+                                <label style="display: block; font-weight: 600; color: #333; margin-bottom: 12px; font-size: 16px;">
+                                    📋 Número de Remisión *
+                                </label>
+                                <input 
+                                    type="text" 
+                                    id="remisionNumero" 
+                                    placeholder="Ej: REM-2025-001" 
+                                    required
+                                    style="width: 100%; padding: 14px 20px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; transition: all 0.3s;"
+                                    onfocus="this.style.borderColor='#10b981'"
+                                    onblur="this.style.borderColor='#e0e0e0'"
+                                >
+                            </div>
+                            
+                            <!-- Productos Section -->
+                            <div style="margin-bottom: 25px;">
+                                <label style="display: block; font-weight: 600; color: #333; margin-bottom: 12px; font-size: 16px;">
+                                    📦 Productos  
+                                </label>
+                                
+                                <!-- Search Product Section -->
+                                <div id="productSearchSection" style="display: none; background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
+                                    <div style="font-weight: 600; color: #333; margin-bottom: 12px;">🔍 Buscar y Agregar Producto</div>
+                                    <div style="position: relative;">
+                                        <input 
+                                            type="text" 
+                                            id="productSearchInput" 
+                                            placeholder="Escribe el código o nombre del producto..."
+                                            oninput="filterClientProducts(this.value)"
+                                            style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px;"
+                                            onfocus="this.style.borderColor='#10b981'; showProductResults()"
+                                            onblur="setTimeout(() => this.style.borderColor='#e0e0e0', 200)"
+                                        >
+                                        <div id="productSearchResults" style="position: absolute; width: 100%; max-height: 300px; overflow-y: auto; background: white; border: 2px solid #e0e0e0; border-radius: 6px; margin-top: 5px; display: none; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></div>
+                                    </div>
+                                </div>
+                                
+                                <div id="remisionProductos" style="display: grid; gap: 12px;">
+                                    <!-- Products will be added dynamically -->
+                                </div>
+                                <button type="button" onclick="addProductoToRemision()" style="margin-top: 15px; padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                    ➕ Agregar Producto Manualmente
+                                </button>
+                            </div>
+                            
+                            <button type="submit" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                                📦 Crear Remisión
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <!-- Remisiones Creadas -->
+                    <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <h4 style="color: #333; margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">📋 Remisiones Creadas</h4>
+                        <div id="remisionesCreadas">
+                            <div style="text-align: center; padding: 20px; color: #666;">⏳ Cargando...</div>
+                        </div>
+                    </div>
+                </div>
+            </div> <!-- End adminPanel -->
 
     <!-- Modal for Adding Equipment from Admin -->
     <div class="modal" id="addEquipmentAdminModal">
@@ -932,8 +1090,6 @@
                 window.firebaseReady = true;
 
                 console.log('✅ Firebase inicializado correctamente');
-                console.log('🔍 window.firebaseReady =', window.firebaseReady);
-                console.log('🔍 window.db =', window.db ? 'EXISTE' : 'NO EXISTE');
             } catch (error) {
                 console.error('❌ Error al inicializar Firebase:', error);
                 alert('Error al inicializar Firebase: ' + error.message);
@@ -1031,13 +1187,355 @@
             
             if (role === 'empleado' || role === 'employee') {
                 document.getElementById('employeeView').style.display = 'block';
-                // Initialize signature canvas after view is shown
-                setTimeout(initSignatureCanvas, 100);
+                document.getElementById('employeeMenuSelection').style.display = 'block';
+                document.getElementById('employeeRemisiones').style.display = 'none';
+                document.getElementById('employeeReportes').style.display = 'none';
             } else if (role === 'administrador' || role === 'admin') {
                 // Admin - show password prompt
                 document.getElementById('adminView').style.display = 'block';
                 document.getElementById('adminPasswordPrompt').style.display = 'block';
                 document.getElementById('adminPanel').style.display = 'none';
+            }
+        }
+        
+        function selectEmployeeOption(option) {
+            console.log('👷 Opción seleccionada:', option);
+            
+            document.getElementById('employeeMenuSelection').style.display = 'none';
+            
+            if (option === 'remisiones') {
+                document.getElementById('employeeRemisiones').style.display = 'block';
+                loadPendingRemisiones();
+            } else if (option === 'reportes') {
+                document.getElementById('employeeReportes').style.display = 'block';
+                // Initialize signature canvas after view is shown
+                setTimeout(initSignatureCanvas, 100);
+            }
+        }
+        
+        function backToEmployeeMenu() {
+            document.getElementById('employeeMenuSelection').style.display = 'block';
+            document.getElementById('employeeRemisiones').style.display = 'none';
+            document.getElementById('employeeReportes').style.display = 'none';
+        }
+        
+        async function loadPendingRemisiones() {
+            const container = document.getElementById('remisionesList');
+            container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">⏳ Cargando remisiones...</p>';
+            
+            try {
+                const querySnapshot = await window.db.collection('remisiones')
+                    .where('status', '==', 'pending')
+                    .get();
+                
+                if (querySnapshot.empty) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #999;">
+                            <p style="font-size: 48px;">📭</p>
+                            <p>No hay remisiones pendientes de entrega</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                container.innerHTML = '';
+                querySnapshot.forEach((doc) => {
+                    const remision = doc.data();
+                    const card = document.createElement('div');
+                    card.className = 'report-card';
+                    card.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-size: 18px; font-weight: 600; color: #333;">
+                                    Remisión #${remision.numero}
+                                </div>
+                                <div style="font-size: 14px; color: #666; margin-top: 5px;">
+                                    ${remision.clientName}
+                                </div>
+                            </div>
+                            <button onclick="openRemisionModal('${doc.id}')" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                                📦 Gestionar Entrega
+                            </button>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error cargando remisiones:', error);
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #ef4444;">
+                        <p>Error al cargar remisiones</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // ===== ADMIN REMISIONES FUNCTIONS =====
+        let remisionProductosCount = 0;
+        
+        function searchClientsForRemision(query) {
+            const resultsDiv = document.getElementById('remisionClientResults');
+            
+            console.log('🔍 Buscando cliente:', query);
+            console.log('📊 Clientes disponibles:', Object.keys(clientsData).length);
+            
+            if (!query || query.length < 2) {
+                resultsDiv.style.display = 'none';
+                return;
+            }
+            
+            if (Object.keys(clientsData).length === 0) {
+                resultsDiv.innerHTML = `
+                    <div style="padding: 15px; color: #ef4444; text-align: center; background: #fef2f2; border-radius: 6px; margin-top: 5px;">
+                        <strong>⚠️ No hay clientes cargados</strong><br>
+                        <small>Los clientes se cargan desde Airtable al iniciar la página. Recarga la página.</small>
+                    </div>
+                `;
+                resultsDiv.style.display = 'block';
+                return;
+            }
+            
+            const filtered = Object.values(clientsData).filter(client => 
+                client.name.toLowerCase().includes(query.toLowerCase()) ||
+                (client.documento && client.documento.toLowerCase().includes(query.toLowerCase()))
+            );
+            
+            console.log('✅ Clientes filtrados:', filtered.length);
+            
+            if (filtered.length === 0) {
+                resultsDiv.innerHTML = '<div style="padding: 15px; color: #666; text-align: center;">No se encontraron clientes</div>';
+                resultsDiv.style.display = 'block';
+                return;
+            }
+            
+            resultsDiv.innerHTML = filtered.map(client => `
+                <div onclick="selectClientForRemision('${client.id}')" style="padding: 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0; transition: background 0.2s;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
+                    <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${client.name}</div>
+                    <div style="font-size: 13px; color: #666;">
+                        ${client.documento ? `NIT: ${client.documento}` : 'Sin NIT'} 
+                        ${client.ciudad ? `• ${client.ciudad}` : ''}
+                    </div>
+                </div>
+            `).join('');
+            resultsDiv.style.display = 'block';
+        }
+        
+        function selectClientForRemision(clientId) {
+            const client = clientsData[clientId];
+            document.getElementById('remisionSelectedClientId').value = clientId;
+            document.getElementById('remisionClientSearch').value = client.name;
+            document.getElementById('remisionClientResults').style.display = 'none';
+            
+            // Show client info card
+            document.getElementById('remisionSelectedClient').innerHTML = `
+                <div style="padding: 20px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-radius: 10px; border-left: 4px solid #10b981;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">EMPRESA</div>
+                            <div style="font-weight: 600; color: #059669;">${client.name}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">NIT</div>
+                            <div style="font-weight: 600; color: #333;">${client.documento || 'N/A'}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">CIUDAD</div>
+                            <div style="font-weight: 600; color: #333;">${client.ciudad || 'N/A'}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Clear previous products
+            document.getElementById('remisionProductos').innerHTML = '';
+            remisionProductosCount = 0;
+            
+            // Load products from Airtable for this client
+            loadProductsForClient(clientId, client.name);
+        }
+        
+        let clientProductsAvailable = []; // Store available products for current client
+        
+        async function loadProductsForClient(clientId, clientName) {
+            const searchSection = document.getElementById('productSearchSection');
+            
+            try {
+                console.log('📦 Cargando productos desde catálogo...');
+                
+                // Try different table name variations
+                const tableNames = [
+                    'Catalogo de Productos',      // Sin acento
+                    'Catálogo de Productos',      // Con acento
+                    'Catalogo',
+                    'Catálogo',
+                    'Productos',
+                    'Products',
+                    'Inventario'
+                ];
+                
+                let data = null;
+                let successTableName = null;
+                
+                for (const tableName of tableNames) {
+                    try {
+                        console.log(`🔍 Probando: "${tableName}"`);
+                        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableName)}`;
+                        
+                        const response = await fetch(url, {
+                            headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` }
+                        });
+                        
+                        console.log(`📊 Status "${tableName}": ${response.status}`);
+                        
+                        if (response.ok) {
+                            data = await response.json();
+                            successTableName = tableName;
+                            console.log(`✅ Tabla encontrada: "${tableName}" con ${data.records.length} productos`);
+                            break;
+                        }
+                    } catch (err) {
+                        console.log(`❌ Error con "${tableName}":`, err.message);
+                    }
+                }
+                
+                if (!data) {
+                    console.error('❌ No se pudo acceder a ninguna tabla de catálogo');
+                    console.log('💡 Tablas probadas:', tableNames.join(', '));
+                    searchSection.style.display = 'none';
+                    alert('⚠️ No se encontró la tabla de productos.\n\n¿Puedes verificar el nombre exacto en Airtable?\n\nTablas probadas: ' + tableNames.join(', '));
+                    return;
+                }
+                
+                console.log('📋 Campos disponibles:', Object.keys(data.records[0]?.fields || {}));
+                
+                // Map all products from catalog
+                clientProductsAvailable = data.records.map(record => {
+                    const fields = record.fields;
+                    return {
+                        codigo: fields['Código'] || fields['codigo'] || fields['ID'] || fields['id'] || fields['Code'] || '',
+                        producto: fields['Nombre'] || fields['nombre'] || fields['Producto'] || fields['producto'] || fields['Descripción'] || fields['Name'] || '',
+                        precio: fields['Precio'] || fields['precio'] || fields['Price'] || 0
+                    };
+                }).filter(p => p.codigo || p.producto);
+                
+                console.log('✅ Productos disponibles:', clientProductsAvailable.length);
+                console.log('📦 Primeros 3 productos:', clientProductsAvailable.slice(0, 3));
+                
+                if (clientProductsAvailable.length > 0) {
+                    searchSection.style.display = 'block';
+                } else {
+                    searchSection.style.display = 'none';
+                    console.warn('⚠️ La tabla no tiene productos o los nombres de campos no coinciden');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error cargando catálogo:', error);
+                searchSection.style.display = 'none';
+            }
+        }
+        
+        function filterClientProducts(query) {
+            const resultsDiv = document.getElementById('productSearchResults');
+            
+            if (!query || query.length < 2) {
+                resultsDiv.style.display = 'none';
+                return;
+            }
+            
+            const filtered = clientProductsAvailable.filter(product => {
+                const searchText = `${product.codigo} ${product.producto}`.toLowerCase();
+                return searchText.includes(query.toLowerCase());
+            });
+            
+            if (filtered.length === 0) {
+                resultsDiv.innerHTML = '<div style="padding: 15px; color: #666; text-align: center;">No se encontraron productos</div>';
+                resultsDiv.style.display = 'block';
+                return;
+            }
+            
+            resultsDiv.innerHTML = filtered.map((product, index) => `
+                <div onclick="selectProductFromSearch('${product.codigo.replace(/'/g, "\\'")}', '${product.producto.replace(/'/g, "\\'")}', '${product.precio}')" 
+                     style="padding: 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0; transition: background 0.2s;" 
+                     onmouseover="this.style.background='#f0fdf4'" 
+                     onmouseout="this.style.background='white'">
+                    <div style="font-weight: 600; color: #333;">${product.codigo}</div>
+                    <div style="font-size: 13px; color: #666; margin-top: 2px;">${product.producto}</div>
+                    ${product.precio ? `<div style="font-size: 12px; color: #10b981; font-weight: 600; margin-top: 4px;">$${parseFloat(product.precio).toLocaleString('es-CO')}</div>` : ''}
+                </div>
+            `).join('');
+            resultsDiv.style.display = 'block';
+        }
+        
+        function showProductResults() {
+            const query = document.getElementById('productSearchInput').value;
+            if (query.length >= 2) {
+                filterClientProducts(query);
+            }
+        }
+        
+        function selectProductFromSearch(codigo, descripcion, precio) {
+            addProductoToRemision(codigo, descripcion);
+            document.getElementById('productSearchInput').value = '';
+            document.getElementById('productSearchResults').style.display = 'none';
+        }
+        
+        
+        function addProductoToRemision(codigoDefault = '', descripcionDefault = '') {
+            const container = document.getElementById('remisionProductos');
+            const id = remisionProductosCount++;
+            
+            const productDiv = document.createElement('div');
+            productDiv.id = `producto-${id}`;
+            productDiv.style.cssText = 'display: grid; grid-template-columns: 1fr 2fr 1fr auto; gap: 10px; padding: 10px; background: #f9f9f9; border-radius: 6px;';
+            productDiv.innerHTML = `
+                <input type="text" placeholder="Código" class="producto-codigo" value="${codigoDefault}" style="padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px;">
+                <input type="text" placeholder="Descripción del producto" class="producto-descripcion" value="${descripcionDefault}" style="padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px;">
+                <input type="number" placeholder="Cantidad" class="producto-cantidad" min="1" value="1" style="padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px;">
+                <button type="button" onclick="removeProducto(${id})" style="padding: 8px 12px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer;">✖</button>
+            `;
+            container.appendChild(productDiv);
+        }
+        
+        function removeProducto(id) {
+            document.getElementById(`producto-${id}`).remove();
+        }
+        
+        async function loadCreatedRemisiones() {
+            const container = document.getElementById('remisionesCreadas');
+            container.innerHTML = '<p style="text-align: center; padding: 20px; color: #666;">⏳ Cargando...</p>';
+            
+            try {
+                const querySnapshot = await window.db.collection('remisiones').get();
+                
+                if (querySnapshot.empty) {
+                    container.innerHTML = '<p style="text-align: center; padding: 20px; color: #999;">No hay remisiones creadas</p>';
+                    return;
+                }
+                
+                container.innerHTML = '';
+                querySnapshot.forEach(doc => {
+                    const remision = doc.data();
+                    const card = document.createElement('div');
+                    card.className = 'report-card';
+                    card.innerHTML = `
+                        <div style="display: flex; justify-content: space-between;">
+                            <div>
+                                <strong>Remisión #${remision.numero}</strong><br>
+                                <span style="color: #666;">${remision.clientName}</span><br>
+                                <span style="font-size: 12px; color: ${remision.status === 'pending' ? '#f59e0b' : remision.status === 'delivered' ? '#10b981' : '#ef4444'};">
+                                    ${remision.status === 'pending' ? '⏳ Pendiente' : remision.status === 'delivered' ? '✅ Entregado' : '❌ No entregado'}
+                                </span>
+                            </div>
+                            <div>
+                                <small>${remision.createdAt?.toDate().toLocaleDateString('es-CO')}</small>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error:', error);
+                container.innerHTML = '<p style="text-align: center; padding: 20px; color: #ef4444;">Error al cargar</p>';
             }
         }
 
@@ -1609,43 +2107,129 @@
             // Update tab buttons
             const tabReportes = document.getElementById('tabReportes');
             const tabEquipos = document.getElementById('tabEquipos');
+            const tabRemisiones = document.getElementById('tabRemisiones');
             
+            // Reset all tabs
+            tabReportes.style.borderBottom = '3px solid transparent';
+            tabReportes.style.color = '#666';
+            tabEquipos.style.borderBottom = '3px solid transparent';
+            tabEquipos.style.color = '#666';
+            tabRemisiones.style.borderBottom = '3px solid transparent';
+            tabRemisiones.style.color = '#666';
+            
+            // Hide all content
+            document.getElementById('contentReportes').style.display = 'none';
+            document.getElementById('contentEquipos').style.display = 'none';
+            document.getElementById('contentRemisiones').style.display = 'none';
+            
+            // Show selected tab
             if (tab === 'reportes') {
                 tabReportes.style.borderBottom = '3px solid #667eea';
                 tabReportes.style.color = '#667eea';
-                tabEquipos.style.borderBottom = '3px solid transparent';
-                tabEquipos.style.color = '#666';
-                
                 document.getElementById('contentReportes').style.display = 'block';
-                document.getElementById('contentEquipos').style.display = 'none';
-            } else {
+            } else if (tab === 'equipos') {
                 tabEquipos.style.borderBottom = '3px solid #667eea';
                 tabEquipos.style.color = '#667eea';
-                tabReportes.style.borderBottom = '3px solid transparent';
-                tabReportes.style.color = '#666';
-                
-                document.getElementById('contentReportes').style.display = 'none';
                 document.getElementById('contentEquipos').style.display = 'block';
+            } else if (tab === 'remisiones') {
+                tabRemisiones.style.borderBottom = '3px solid #667eea';
+                tabRemisiones.style.color = '#667eea';
+                document.getElementById('contentRemisiones').style.display = 'block';
+                loadCreatedRemisiones();
             }
         }
 
         async function loadAdminClients() {
-            const select = document.getElementById('adminClientSelect');
-            select.innerHTML = '<option value="">Selecciona un cliente...</option>';
+            // This is now called on admin login, clients are already loaded in clientsData
+            console.log('Clientes disponibles:', Object.keys(clientsData).length);
+        }
+        
+        function searchAdminClients(query) {
+            const resultsDiv = document.getElementById('adminClientSearchResults');
             
-            Object.values(clientsData).forEach(client => {
-                const option = document.createElement('option');
-                option.value = client.id;
-                option.textContent = client.name;
-                select.appendChild(option);
-            });
+            console.log('🔍 [Admin] Buscando cliente:', query);
+            console.log('📊 [Admin] Clientes disponibles:', Object.keys(clientsData).length);
+            
+            if (!query || query.length < 2) {
+                resultsDiv.style.display = 'none';
+                return;
+            }
+            
+            if (Object.keys(clientsData).length === 0) {
+                resultsDiv.innerHTML = `
+                    <div style="padding: 15px; color: #ef4444; text-align: center; background: #fef2f2; border-radius: 6px; margin-top: 5px;">
+                        <strong>⚠️ No hay clientes cargados</strong><br>
+                        <small>Los clientes se cargan desde Airtable al iniciar la página. Recarga la página.</small>
+                    </div>
+                `;
+                resultsDiv.style.display = 'block';
+                return;
+            }
+            
+            const filtered = Object.values(clientsData).filter(client => 
+                client.name.toLowerCase().includes(query.toLowerCase()) ||
+                (client.documento && client.documento.toLowerCase().includes(query.toLowerCase()))
+            );
+            
+            console.log('✅ [Admin] Clientes filtrados:', filtered.length);
+            
+            if (filtered.length === 0) {
+                resultsDiv.innerHTML = '<div style="padding: 15px; color: #666; text-align: center;">No se encontraron clientes</div>';
+                resultsDiv.style.display = 'block';
+                return;
+            }
+            
+            resultsDiv.innerHTML = filtered.map(client => `
+                <div onclick="selectAdminClient('${client.id}')" style="padding: 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0; transition: background 0.2s;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
+                    <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${client.name}</div>
+                    <div style="font-size: 13px; color: #666;">
+                        ${client.documento ? `NIT: ${client.documento}` : 'Sin NIT'} 
+                        ${client.ciudad ? `• ${client.ciudad}` : ''}
+                    </div>
+                </div>
+            `).join('');
+            resultsDiv.style.display = 'block';
+        }
+        
+        function selectAdminClient(clientId) {
+            const client = clientsData[clientId];
+            document.getElementById('adminSelectedClientId').value = clientId;
+            document.getElementById('adminClientSearch').value = client.name;
+            document.getElementById('adminClientSearchResults').style.display = 'none';
+            
+            document.getElementById('adminSelectedClientInfo').innerHTML = `
+                <div style="padding: 20px; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius: 10px; border-left: 4px solid #0ea5e9;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">EMPRESA</div>
+                            <div style="font-weight: 600; color: #0369a1;">${client.name}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">NIT</div>
+                            <div style="font-weight: 600; color: #333;">${client.documento || 'N/A'}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">CIUDAD</div>
+                            <div style="font-weight: 600; color: #333;">${client.ciudad || 'N/A'}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">CONTACTO</div>
+                            <div style="font-weight: 600; color: #333;">${client.telefono || 'N/A'}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Store and load equipments
+            window.adminSelectedClient = clientId;
+            loadClientEquipments();
         }
 
         // Store selected client for admin operations
         window.adminSelectedClient = null;
 
         async function loadClientEquipments() {
-            const clientId = document.getElementById('adminClientSelect').value;
+            const clientId = document.getElementById('adminSelectedClientId').value;
             const container = document.getElementById('clientEquipmentsList');
             const actionsDiv = document.getElementById('adminEquipmentActions');
             
@@ -1716,29 +2300,45 @@
                 container.innerHTML = '';
                 equipments.forEach((equipment) => {
                     const card = document.createElement('div');
-                    card.className = 'info-card';
-                    card.style.marginBottom = '15px';
+                    card.style.cssText = 'background: white; padding: 25px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #667eea; transition: transform 0.2s, box-shadow 0.2s;';
+                    card.onmouseover = () => {
+                        card.style.transform = 'translateY(-2px)';
+                        card.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)';
+                    };
+                    card.onmouseout = () => {
+                        card.style.transform = 'translateY(0)';
+                        card.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
+                    };
                     
                     card.innerHTML = `
-                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; gap: 20px;">
                             <div style="flex: 1;">
-                                <h4 style="color: #667eea; margin-bottom: 10px;">
-                                    Equipo #${equipment.equipmentNumber || 'S/N'} - ${equipment.model}
-                                </h4>
-                                <p style="font-size: 14px; color: #666; margin-bottom: 5px;">
-                                    <strong>Serie:</strong> ${equipment.serial}
-                                </p>
-                                ${equipment.notes ? `
-                                    <p style="font-size: 14px; color: #666;">
-                                        <strong>Notas:</strong> ${equipment.notes}
-                                    </p>
-                                ` : ''}
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
+                                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 16px;">
+                                        #${equipment.equipmentNumber || 'S/N'}
+                                    </div>
+                                    <h4 style="margin: 0; color: #333; font-size: 18px; font-weight: 600;">
+                                        ${equipment.model}
+                                    </h4>
+                                </div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 12px;">
+                                    <div style="padding: 10px; background: #f9fafb; border-radius: 6px;">
+                                        <div style="font-size: 11px; color: #666; text-transform: uppercase; margin-bottom: 4px; font-weight: 600;">Número de Serie</div>
+                                        <div style="font-size: 14px; color: #333; font-weight: 500;">${equipment.serial}</div>
+                                    </div>
+                                    ${equipment.notes ? `
+                                        <div style="padding: 10px; background: #f9fafb; border-radius: 6px;">
+                                            <div style="font-size: 11px; color: #666; text-transform: uppercase; margin-bottom: 4px; font-weight: 600;">Notas</div>
+                                            <div style="font-size: 14px; color: #333;">${equipment.notes}</div>
+                                        </div>
+                                    ` : ''}
+                                </div>
                             </div>
-                            <div style="display: flex; gap: 10px;">
-                                <button onclick="openEditEquipmentModal('${equipment.id}')" style="background: #0ea5e9; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <button onclick="openEditEquipmentModal('${equipment.id}')" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: transform 0.2s; white-space: nowrap;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
                                     ✏️ Editar
                                 </button>
-                                <button onclick="deleteEquipment('${equipment.id}', '${equipment.model}')" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                                <button onclick="deleteEquipment('${equipment.id}', '${equipment.model}')" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: transform 0.2s; white-space: nowrap;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
                                     🗑️ Eliminar
                                 </button>
                             </div>
@@ -2341,6 +2941,78 @@
     <!-- Firebase Module Scripts -->
     <script type="module">
         // Report form submit handler
+        // Remision Form Submit
+        document.getElementById('remisionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const clientId = document.getElementById('remisionSelectedClientId').value;
+            const numero = document.getElementById('remisionNumero').value;
+            
+            if (!clientId) {
+                alert('Por favor selecciona un cliente');
+                return;
+            }
+            
+            if (!numero) {
+                alert('Por favor ingresa el número de remisión');
+                return;
+            }
+            
+            // Get productos from manual inputs
+            const productos = [];
+            document.querySelectorAll('#remisionProductos > div').forEach(div => {
+                const codigo = div.querySelector('.producto-codigo').value;
+                const descripcion = div.querySelector('.producto-descripcion').value;
+                const cantidad = div.querySelector('.producto-cantidad').value;
+                
+                if (codigo && descripcion && cantidad) {
+                    productos.push({
+                        codigo,
+                        descripcion,
+                        cantidad: parseInt(cantidad)
+                    });
+                }
+            });
+            
+            if (productos.length === 0) {
+                alert('Por favor agrega al menos un producto');
+                return;
+            }
+            
+            try {
+                const client = clientsData[clientId];
+                
+                await window.db.collection('remisiones').add({
+                    numero: numero,
+                    clientId: clientId,
+                    clientName: client.name,
+                    clientDocument: client.documento || '',
+                    clientEmail: client.email || '',
+                    productos: productos,
+                    status: 'pending',
+                    createdAt: firebase.firestore.Timestamp.now()
+                });
+                
+                alert('✅ Remisión creada exitosamente con ' + productos.length + ' producto(s)');
+                
+                // Reset form
+                document.getElementById('remisionForm').reset();
+                document.getElementById('remisionSelectedClient').innerHTML = '';
+                document.getElementById('remisionSelectedClientId').value = '';
+                document.getElementById('remisionClientSearch').value = '';
+                document.getElementById('remisionProductos').innerHTML = '';
+                remisionProductosCount = 0;
+                
+                // Reload list
+                loadCreatedRemisiones();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al crear remisión: ' + error.message);
+            }
+        });
+        
+        // Report Form Submit
         document.getElementById('reportForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
@@ -2376,6 +3048,7 @@
                 totalHoras = totalMinutes / 60;
             }
 
+            // Prepare safe data structure for Firebase (no nested objects or File objects)
             const report = {
                 technician: document.getElementById('technicianName').value,
                 clientId: clientId,
@@ -2385,36 +3058,56 @@
                 clientDocument: client.documento || '',
                 clientCity: client.ciudad || '',
                 clientAddress: client.direccion || '',
-                equipments: window.reportEquipments.map(eq => ({
-                    equipment: {
-                        id: eq.equipment.id || '',
-                        equipmentNumber: eq.equipment.equipmentNumber || '',
-                        model: eq.equipment.model || '',
-                        serial: eq.equipment.serial || '',
-                        notes: eq.equipment.notes || ''
-                    },
-                    trabajos: eq.trabajos || [],
-                    parametros: eq.parametros || {},
-                    materiales: eq.materiales || [],
-                    observations: eq.observations || '',
-                    images: (eq.images || []).map(img => img.data || img) // Only keep base64 data strings
-                })),
+                equipments: window.reportEquipments.map((eq, idx) => {
+                    // Flatten equipment data - only primitives and simple objects
+                    return {
+                        equipmentId: eq.equipment?.id || '',
+                        equipmentNumber: eq.equipment?.equipmentNumber || (idx + 1).toString(),
+                        model: eq.equipment?.model || '',
+                        serial: eq.equipment?.serial || '',
+                        notes: eq.equipment?.notes || '',
+                        trabajos: Array.isArray(eq.trabajos) ? eq.trabajos : [],
+                        parametros: {
+                            horasFiltro: eq.parametros?.horasFiltro || '',
+                            presionBomba: eq.parametros?.presionBomba || '',
+                            viscosidad: eq.parametros?.viscosidad || ''
+                        },
+                        materiales: Array.isArray(eq.materiales) ? eq.materiales.map(m => ({
+                            cantidad: m.cantidad || '',
+                            descripcion: m.descripcion || '',
+                            referencia: m.referencia || ''
+                        })) : [],
+                        observations: eq.observations || '',
+                        images: Array.isArray(eq.images) ? eq.images.map(img => {
+                            // Only keep base64 string, remove any File objects
+                            if (typeof img === 'string') return img;
+                            if (img && img.data && typeof img.data === 'string') return img.data;
+                            return '';
+                        }).filter(i => i) : []
+                    };
+                }),
                 serviceType: document.getElementById('serviceType').value,
                 horaEntrada: horaEntrada,
                 horaSalida: horaSalida,
                 tiempoServicio: totalHoras,
-                observaciones: document.getElementById('observaciones').value,
+                observaciones: document.getElementById('observaciones').value || '',
                 receptorNombre: document.getElementById('receptorNombre').value,
                 receptorCargo: document.getElementById('receptorCargo').value,
                 receptorFirma: hasSignature ? getSignatureData() : null,
                 status: 'pending',
                 createdAt: firebase.firestore.Timestamp.now()
             };
+            
+            console.log('📦 Enviando reporte:', JSON.stringify(report, null, 2));
+
+            console.log('📦 Enviando reporte:', JSON.stringify(report, null, 2));
 
             try {
+                console.log('💾 Guardando en Firebase...');
                 const docRef = await window.db.collection('reports').add(report);
                 
                 console.log('✅ Reporte guardado con ID:', docRef.id);
+                console.log('✅ Status del reporte:', report.status);
 
                 // Show success message
                 showSuccess('✓ Reporte enviado exitosamente para aprobación (ID: ' + docRef.id + ')');
@@ -2443,11 +3136,14 @@
         async function loadPendingReports() {
             const container = document.getElementById('pendingReports');
             
+            console.log('🔍 Cargando reportes pendientes...');
+            
             try {
                 const querySnapshot = await window.db.collection('reports')
                     .where('status', '==', 'pending')
-                    .orderBy('createdAt', 'desc')
                     .get();
+                
+                console.log('✅ Reportes encontrados:', querySnapshot.size);
                 
                 if (querySnapshot.empty) {
                     container.innerHTML = `
@@ -2463,16 +3159,21 @@
                 container.innerHTML = '';
                 querySnapshot.forEach((doc) => {
                     const report = doc.data();
+                    const reportId = doc.id;
                     const reportDate = report.createdAt.toDate();
+                    
+                    console.log('📄 Procesando reporte:', reportId, report.clientName);
                     
                     // Build equipments summary
                     let equipmentsSummary = '';
                     if (report.equipments && report.equipments.length > 0) {
-                        equipmentsSummary = report.equipments.map(eq => 
-                            `Equipo #${eq.equipment.equipmentNumber} - ${eq.equipment.model}`
-                        ).join(', ');
+                        equipmentsSummary = report.equipments.map((eq, idx) => {
+                            const eqNum = eq.equipmentNumber || (idx + 1);
+                            const model = eq.model || 'Sin modelo';
+                            return `Equipo #${eqNum} - ${model}`;
+                        }).join(', ');
                     } else {
-                        equipmentsSummary = report.equipmentModel || 'No especificado';
+                        equipmentsSummary = 'No especificado';
                     }
                     
                     const card = document.createElement('div');
@@ -2513,13 +3214,17 @@
                         ${report.equipments && report.equipments.length > 0 ? `
                             <div style="margin-top: 15px; padding: 10px; background: #f8f9ff; border-radius: 6px;">
                                 <strong style="color: #667eea;">Detalle por Equipo:</strong>
-                                ${report.equipments.map((eq, index) => `
+                                ${report.equipments.map((eq, index) => {
+                                    const eqNum = eq.equipmentNumber || eq.equipmentId || (index + 1);
+                                    const eqModel = eq.model || 'Sin modelo';
+                                    const eqSerial = eq.serial || 'Sin serie';
+                                    return `
                                     <div style="margin-top: 10px; padding-left: 10px; border-left: 3px solid #667eea;">
                                         <p style="font-weight: 600; margin-bottom: 5px;">
-                                            Equipo #${eq.equipment.equipmentNumber} - ${eq.equipment.model}
+                                            Equipo #${eqNum} - ${eqModel}
                                         </p>
                                         <p style="font-size: 13px; color: #666;">
-                                            <strong>Trabajos:</strong> ${eq.trabajos.join(', ')}
+                                            <strong>Trabajos:</strong> ${(eq.trabajos || []).join(', ') || 'Ninguno'}
                                         </p>
                                         ${eq.materiales && eq.materiales.length > 0 ? `
                                             <p style="font-size: 13px; color: #666;">
@@ -2527,7 +3232,8 @@
                                             </p>
                                         ` : ''}
                                     </div>
-                                `).join('')}
+                                    `;
+                                }).join('')}
                             </div>
                         ` : ''}
                         ${report.trabajos && report.trabajos.length > 0 ? `
@@ -2549,13 +3255,13 @@
                             </div>
                         ` : ''}
                         <div class="action-buttons">
-                            <button class="approve-btn" onclick="openEditReportModal('${doc.id}')" style="background: #0ea5e9;">
+                            <button class="approve-btn" onclick="openEditReportModal('${reportId}')" style="background: #0ea5e9;">
                                 ✏️ Editar
                             </button>
-                            <button class="approve-btn" onclick="approveReport('${doc.id}', '${report.clientEmail}', '${report.clientName}')">
+                            <button class="approve-btn" onclick="approveReport('${reportId}', '${report.clientEmail}', '${report.clientName}')">
                                 ✓ Aprobar y Enviar
                             </button>
-                            <button class="reject-btn" onclick="rejectReport('${doc.id}')">
+                            <button class="reject-btn" onclick="rejectReport('${reportId}')">
                                 ✗ Rechazar
                             </button>
                         </div>
@@ -2843,10 +3549,14 @@
                     equipmentsHTML = `
                         <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
                             <h4 style="color: #0369a1; margin-bottom: 15px;">Equipos y Trabajos Realizados:</h4>
-                            ${report.equipments.map((eq, eqIndex) => `
+                            ${report.equipments.map((eq, eqIndex) => {
+                                const eqNum = eq.equipmentNumber || eq.equipmentId || (eqIndex + 1);
+                                const eqModel = eq.model || 'Sin modelo';
+                                const eqSerial = eq.serial || 'Sin serie';
+                                return `
                                 <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #0ea5e9;" class="equipment-edit-section">
                                     <h5 style="color: #0369a1; margin-bottom: 15px;">
-                                        Equipo #${eq.equipment.equipmentNumber} - ${eq.equipment.model} (${eq.equipment.serial})
+                                        Equipo #${eqNum} - ${eqModel} (${eqSerial})
                                     </h5>
                                     
                                     <div class="form-group">
@@ -2940,7 +3650,8 @@
                                         <textarea class="eq-${eqIndex}-observations" style="width: 100%; min-height: 60px; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px; font-family: inherit;">${eq.observations || ''}</textarea>
                                     </div>
                                 </div>
-                            `).join('')}
+                                `;
+                            }).join('')}
                         </div>
                     `;
                 }
