@@ -3884,8 +3884,9 @@
                 airtable: {
                     token: 'pat2FXaqNabeGXsid.0261666b985812b1e589320ae1648d43e8e2964528bef6d7d7c92d71d3034e33',
                     baseId: 'appZR5HyyKvRk6rhJ',
-                    tablaCatalogo: 'Productos',
-                    tablaPrecios: 'Precios por Cliente'
+                    tablaClientes: 'Gestión de Clientes',
+                    tablaCatalogo: 'Catálogo de Productos',
+                    tablaPrecios: 'Presios por cliente'
                 }
             };
             
@@ -3922,7 +3923,7 @@
             
             async function cargarCatalogo() {
                 try {
-                    console.log('📦 Cargando catálogo desde "Productos"...');
+                    console.log('📦 Cargando catálogo desde "Catálogo de Productos"...');
                     
                     const url = `https://api.airtable.com/v0/${CONFIG.airtable.baseId}/${encodeURIComponent(CONFIG.airtable.tablaCatalogo)}`;
                     
