@@ -755,15 +755,21 @@
                 <div class="success-message" id="adminSuccessMessage"></div>
 
                 <!-- Tabs -->
-                <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0;">
-                    <button id="tabReportes" onclick="switchAdminTab('reportes')" style="padding: 15px 30px; background: transparent; border: none; border-bottom: 3px solid #667eea; color: #667eea; font-weight: 600; cursor: pointer; font-size: 16px;">
-                        📋 Reportes
+                <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0;">
+                    <button id="tabReportes" onclick="switchAdminTab('reportes')" style="padding: 12px 15px; background: transparent; border: none; border-bottom: 3px solid #667eea; color: #667eea; font-weight: 600; cursor: pointer; font-size: 14px;">
+                        Reportes
                     </button>
-                    <button id="tabEquipos" onclick="switchAdminTab('equipos')" style="padding: 15px 30px; background: transparent; border: none; border-bottom: 3px solid transparent; color: #666; font-weight: 600; cursor: pointer; font-size: 16px;">
-                        ⚙️ Gestión de Equipos
+                    <button id="tabEquipos" onclick="switchAdminTab('equipos')" style="padding: 12px 15px; background: transparent; border: none; border-bottom: 3px solid transparent; color: #666; font-weight: 600; cursor: pointer; font-size: 14px;">
+                        Equipos
                     </button>
-                    <button id="tabRemisiones" onclick="switchAdminTab('remisiones')" style="padding: 15px 30px; background: transparent; border: none; border-bottom: 3px solid transparent; color: #666; font-weight: 600; cursor: pointer; font-size: 16px;">
-                        📦 Crear Remisiones
+                    <button id="tabRemisiones" onclick="switchAdminTab('remisiones')" style="padding: 12px 15px; background: transparent; border: none; border-bottom: 3px solid transparent; color: #666; font-weight: 600; cursor: pointer; font-size: 14px;">
+                        Remisiones
+                    </button>
+                    <button id="tabClientes" onclick="switchAdminTab('clientes')" style="padding: 12px 15px; background: transparent; border: none; border-bottom: 3px solid transparent; color: #666; font-weight: 600; cursor: pointer; font-size: 14px;">
+                        Clientes
+                    </button>
+                    <button id="tabProductos" onclick="switchAdminTab('productos')" style="padding: 12px 15px; background: transparent; border: none; border-bottom: 3px solid transparent; color: #666; font-weight: 600; cursor: pointer; font-size: 14px;">
+                        Productos
                     </button>
                 </div>
 
@@ -1011,7 +1017,195 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Tab Content: Gestión de Clientes -->
+                <div id="contentClientes" style="display: none;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; margin-bottom: 30px; color: white;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 24px;">👥 Gestión de Clientes</h3>
+                        <p style="margin: 0; opacity: 0.9; font-size: 14px;">Administra los clientes y sus datos de contacto</p>
+                    </div>
+
+                    <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; color: #333; margin-bottom: 12px; font-size: 16px;">
+                            🔍 Buscar Cliente
+                        </label>
+                        <input
+                            type="text"
+                            id="adminClientFilter"
+                            placeholder="Buscar por nombre o NIT..."
+                            oninput="filterAdminClientsList(this.value)"
+                            style="width: 100%; padding: 14px 20px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; transition: all 0.3s;"
+                            onfocus="this.style.borderColor='#667eea'"
+                            onblur="this.style.borderColor='#e0e0e0'"
+                        >
+                    </div>
+
+                    <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
+                        <button onclick="openNewClientModal()" style="padding: 14px 28px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                            ➕ Agregar Nuevo Cliente
+                        </button>
+                        <button onclick="migrarClientesDeAirtable()" style="padding: 14px 28px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                            📥 Importar de Airtable
+                        </button>
+                    </div>
+
+                    <div id="adminClientsList"></div>
+                </div>
+
+                <!-- Tab Content: Gestión de Productos -->
+                <div id="contentProductos" style="display: none;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; margin-bottom: 30px; color: white;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 24px;">📦 Catálogo de Productos</h3>
+                        <p style="margin: 0; opacity: 0.9; font-size: 14px;">Administra productos y precios personalizados por cliente</p>
+                    </div>
+
+                    <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; color: #333; margin-bottom: 12px; font-size: 16px;">
+                            🔍 Buscar Producto
+                        </label>
+                        <input
+                            type="text"
+                            id="adminProductFilter"
+                            placeholder="Buscar por código o nombre..."
+                            oninput="filterAdminProductsList(this.value)"
+                            style="width: 100%; padding: 14px 20px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; transition: all 0.3s;"
+                            onfocus="this.style.borderColor='#667eea'"
+                            onblur="this.style.borderColor='#e0e0e0'"
+                        >
+                    </div>
+
+                    <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
+                        <button onclick="openNewProductModal()" style="padding: 14px 28px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                            ➕ Agregar Nuevo Producto
+                        </button>
+                        <button onclick="openClientPricesModal()" style="padding: 14px 28px; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                            💰 Precios por Cliente
+                        </button>
+                        <button onclick="migrarProductosDeAirtable()" style="padding: 14px 28px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                            📥 Importar de Airtable
+                        </button>
+                    </div>
+
+                    <div id="adminProductsList"></div>
+                </div>
             </div> <!-- End adminPanel -->
+
+    <!-- Modal: Nuevo/Editar Cliente -->
+    <div class="modal" id="clientModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="clientModalTitle">+ Nuevo Cliente</h3>
+                <button class="close-modal" onclick="closeClientModal()">x</button>
+            </div>
+            <form id="clientForm">
+                <input type="hidden" id="editClientId">
+                <div class="form-group">
+                    <label>Empresa / Razón Social *</label>
+                    <input type="text" id="clientName" required placeholder="Nombre de la empresa">
+                </div>
+                <div class="form-group">
+                    <label>NIT / Documento *</label>
+                    <input type="text" id="clientDocumento" required placeholder="Ej: 900123456-1">
+                </div>
+                <div class="form-group">
+                    <label>Teléfono</label>
+                    <input type="tel" id="clientTelefono" placeholder="Ej: 3001234567">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="clientEmail" placeholder="correo@empresa.com">
+                </div>
+                <div class="form-group">
+                    <label>Ciudad</label>
+                    <input type="text" id="clientCiudad" placeholder="Ej: Bogotá">
+                </div>
+                <div class="form-group">
+                    <label>Dirección</label>
+                    <textarea id="clientDireccion" placeholder="Dirección completa"></textarea>
+                </div>
+                <button type="button" class="submit-btn" onclick="saveClientForm()">Guardar Cliente</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Nuevo/Editar Producto -->
+    <div class="modal" id="productModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="productModalTitle">+ Nuevo Producto</h3>
+                <button class="close-modal" onclick="closeProductModal()">x</button>
+            </div>
+            <form id="productForm">
+                <input type="hidden" id="editProductId">
+                <div class="form-group">
+                    <label>Código *</label>
+                    <input type="text" id="productCodigo" required placeholder="Código único del producto">
+                </div>
+                <div class="form-group">
+                    <label>Nombre del Producto *</label>
+                    <input type="text" id="productNombre" required placeholder="Nombre descriptivo">
+                </div>
+                <div class="form-group">
+                    <label>Unidad de Medida</label>
+                    <select id="productUnidad">
+                        <option value="Unidad">Unidad</option>
+                        <option value="Kg">Kilogramo</option>
+                        <option value="Lt">Litro</option>
+                        <option value="Mt">Metro</option>
+                        <option value="Caja">Caja</option>
+                        <option value="Galón">Galón</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Precio Base *</label>
+                    <input type="number" id="productPrecioBase" min="0" step="100" required placeholder="Precio por defecto">
+                </div>
+                <button type="button" class="submit-btn" onclick="saveProductForm()">Guardar Producto</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Precios por Cliente -->
+    <div class="modal" id="clientPricesModal" style="display: none;">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3>Precios por Cliente</h3>
+                <button class="close-modal" onclick="closeClientPricesModal()">x</button>
+            </div>
+
+            <div class="form-group">
+                <label>Seleccionar Cliente</label>
+                <select id="priceClientSelect" onchange="loadPricesForSelectedClient()" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px;">
+                    <option value="">-- Selecciona un cliente --</option>
+                </select>
+            </div>
+
+            <div id="priceClientInfo" style="display: none; background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;"></div>
+
+            <div id="clientPricesTable" style="max-height: 350px; overflow-y: auto; margin-bottom: 20px;">
+                <p style="text-align: center; color: #666; padding: 20px;">Selecciona un cliente para ver sus precios</p>
+            </div>
+
+            <div id="addPriceSection" style="display: none; padding-top: 20px; border-top: 2px solid #e0e0e0;">
+                <h4 style="margin-bottom: 15px;">Agregar Precio Personalizado</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 15px; align-items: end;">
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Producto</label>
+                        <select id="newPriceProduct" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px;">
+                            <option value="">-- Selecciona producto --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Precio Acordado</label>
+                        <input type="number" id="newPriceAmount" min="0" step="100" placeholder="Precio" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px;">
+                    </div>
+                    <button onclick="addClientPrice()" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                        + Agregar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Modal for Adding Equipment from Admin -->
     <div class="modal" id="addEquipmentAdminModal">
@@ -1108,8 +1302,8 @@
         // Also expose the resolver globally
         window.resolveFirebaseReady = firebaseReadyResolve;
         
-        // Airtable configuration
-        const AIRTABLE_TOKEN = 'patfct6uVOEymv0Mi.0b9ab712a5229db4c7eefc44d0174e458aabeeead2f4c70e8c4a9fb21cac744d';
+        // Airtable configuration (token unificado)
+        const AIRTABLE_TOKEN = 'patTao6lS83a4qAFN';
         const AIRTABLE_BASE_ID = 'appZR5HyyKvRk6rhJ';
         const AIRTABLE_TABLE_NAME = 'Gestión de Clientes';
         
@@ -1174,9 +1368,8 @@
                 }
             }
             
-            // If all table names failed, show detailed error
-            console.error('❌ No se pudo cargar desde ninguna tabla');
-            alert('No se pudo encontrar la tabla de clientes en Airtable. Verifica los permisos del token.');
+            // If all table names failed, log error (no alert)
+            console.log('Airtable: No se pudo cargar clientes (usar Firebase en su lugar)');
             return false;
         }
 
@@ -1355,81 +1548,51 @@
         }
         
         let clientProductsAvailable = []; // Store available products for current client
-        
+
         async function loadProductsForClient(clientId, clientName) {
             const searchSection = document.getElementById('productSearchSection');
-            
+
             try {
-                console.log('📦 Cargando productos desde catálogo...');
-                
-                // Try different table name variations
-                const tableNames = [
-                    'Catalogo de Productos',      // Sin acento
-                    'Catálogo de Productos',      // Con acento
-                    'Catalogo',
-                    'Catálogo',
-                    'Productos',
-                    'Products',
-                    'Inventario'
-                ];
-                
-                let data = null;
-                let successTableName = null;
-                
-                for (const tableName of tableNames) {
+                console.log('Cargando productos...');
+
+                // Primero intentar cargar desde Firebase
+                if (typeof firebaseProductsData !== 'undefined' && firebaseProductsData.length > 0) {
+                    console.log('Usando productos desde Firebase');
+
+                    // Cargar precios personalizados para este cliente
+                    let clientPrices = {};
                     try {
-                        console.log(`🔍 Probando: "${tableName}"`);
-                        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableName)}`;
-                        
-                        const response = await fetch(url, {
-                            headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` }
-                        });
-                        
-                        console.log(`📊 Status "${tableName}": ${response.status}`);
-                        
-                        if (response.ok) {
-                            data = await response.json();
-                            successTableName = tableName;
-                            console.log(`✅ Tabla encontrada: "${tableName}" con ${data.records.length} productos`);
-                            break;
-                        }
+                        clientPrices = await loadClientPricesFromFirebase(clientId);
                     } catch (err) {
-                        console.log(`❌ Error con "${tableName}":`, err.message);
+                        console.log('Sin precios personalizados para este cliente');
                     }
-                }
-                
-                if (!data) {
-                    console.error('❌ No se pudo acceder a ninguna tabla de catálogo');
-                    console.log('💡 Tablas probadas:', tableNames.join(', '));
-                    searchSection.style.display = 'none';
-                    alert('⚠️ No se encontró la tabla de productos.\n\n¿Puedes verificar el nombre exacto en Airtable?\n\nTablas probadas: ' + tableNames.join(', '));
+
+                    // Mapear productos con precios
+                    clientProductsAvailable = firebaseProductsData.map(product => {
+                        const customPrice = clientPrices[product.codigo];
+                        return {
+                            codigo: product.codigo,
+                            producto: product.nombre,
+                            precio: customPrice ? customPrice.precio : product.precioBase
+                        };
+                    });
+
+                    console.log(`${clientProductsAvailable.length} productos cargados desde Firebase`);
+
+                    if (clientProductsAvailable.length > 0) {
+                        searchSection.style.display = 'block';
+                    } else {
+                        searchSection.style.display = 'none';
+                    }
                     return;
                 }
-                
-                console.log('📋 Campos disponibles:', Object.keys(data.records[0]?.fields || {}));
-                
-                // Map all products from catalog
-                clientProductsAvailable = data.records.map(record => {
-                    const fields = record.fields;
-                    return {
-                        codigo: fields['Código'] || fields['codigo'] || fields['ID'] || fields['id'] || fields['Code'] || '',
-                        producto: fields['Nombre'] || fields['nombre'] || fields['Producto'] || fields['producto'] || fields['Descripción'] || fields['Name'] || '',
-                        precio: fields['Precio'] || fields['precio'] || fields['Price'] || 0
-                    };
-                }).filter(p => p.codigo || p.producto);
-                
-                console.log('✅ Productos disponibles:', clientProductsAvailable.length);
-                console.log('📦 Primeros 3 productos:', clientProductsAvailable.slice(0, 3));
-                
-                if (clientProductsAvailable.length > 0) {
-                    searchSection.style.display = 'block';
-                } else {
-                    searchSection.style.display = 'none';
-                    console.warn('⚠️ La tabla no tiene productos o los nombres de campos no coinciden');
-                }
-                
+
+                // Si no hay productos en Firebase, mostrar mensaje
+                console.log('No hay productos en Firebase - agregar desde Admin');
+                searchSection.style.display = 'none';
+
             } catch (error) {
-                console.error('❌ Error cargando catálogo:', error);
+                console.error('Error cargando productos:', error);
                 searchSection.style.display = 'none';
             }
         }
@@ -2108,20 +2271,24 @@
             const tabReportes = document.getElementById('tabReportes');
             const tabEquipos = document.getElementById('tabEquipos');
             const tabRemisiones = document.getElementById('tabRemisiones');
-            
+            const tabClientes = document.getElementById('tabClientes');
+            const tabProductos = document.getElementById('tabProductos');
+
             // Reset all tabs
-            tabReportes.style.borderBottom = '3px solid transparent';
-            tabReportes.style.color = '#666';
-            tabEquipos.style.borderBottom = '3px solid transparent';
-            tabEquipos.style.color = '#666';
-            tabRemisiones.style.borderBottom = '3px solid transparent';
-            tabRemisiones.style.color = '#666';
-            
+            [tabReportes, tabEquipos, tabRemisiones, tabClientes, tabProductos].forEach(t => {
+                if (t) {
+                    t.style.borderBottom = '3px solid transparent';
+                    t.style.color = '#666';
+                }
+            });
+
             // Hide all content
             document.getElementById('contentReportes').style.display = 'none';
             document.getElementById('contentEquipos').style.display = 'none';
             document.getElementById('contentRemisiones').style.display = 'none';
-            
+            document.getElementById('contentClientes').style.display = 'none';
+            document.getElementById('contentProductos').style.display = 'none';
+
             // Show selected tab
             if (tab === 'reportes') {
                 tabReportes.style.borderBottom = '3px solid #667eea';
@@ -2136,6 +2303,16 @@
                 tabRemisiones.style.color = '#667eea';
                 document.getElementById('contentRemisiones').style.display = 'block';
                 loadCreatedRemisiones();
+            } else if (tab === 'clientes') {
+                tabClientes.style.borderBottom = '3px solid #3b82f6';
+                tabClientes.style.color = '#3b82f6';
+                document.getElementById('contentClientes').style.display = 'block';
+                loadClientsListAdmin();
+            } else if (tab === 'productos') {
+                tabProductos.style.borderBottom = '3px solid #f59e0b';
+                tabProductos.style.color = '#f59e0b';
+                document.getElementById('contentProductos').style.display = 'block';
+                loadProductsListAdmin();
             }
         }
 
@@ -2660,24 +2837,47 @@
         // Load clients when page loads
         document.addEventListener('DOMContentLoaded', async function() {
             const clientSelect = document.getElementById('clientSelect');
-            clientSelect.innerHTML = '<option value="">Cargando clientes desde Airtable...</option>';
-            
-            // Load clients from Airtable
-            const success = await loadClientsFromAirtable();
-            
-            if (success && Object.keys(clientsData).length > 0) {
+            clientSelect.innerHTML = '<option value="">Cargando clientes...</option>';
+
+            // Esperar a que Firebase esté listo
+            let attempts = 0;
+            while (!window.firebaseReady && attempts < 30) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+
+            // Primero intentar cargar desde Firebase
+            let success = false;
+            try {
+                success = await loadClientsFromFirebase();
+                if (success && Object.keys(firebaseClientsData).length > 0) {
+                    console.log('Clientes cargados desde Firebase');
+                }
+            } catch (err) {
+                console.log('Firebase: sin clientes todavía');
+            }
+
+            // Cargar productos desde Firebase también
+            try {
+                await loadProductsFromFirebase();
+            } catch (err) {
+                console.log('Firebase: sin productos todavía');
+            }
+
+            // Llenar el selector de clientes
+            if (Object.keys(clientsData).length > 0) {
                 clientSelect.innerHTML = '<option value="">Selecciona un cliente...</option>';
-                
+
                 Object.values(clientsData).forEach(client => {
                     const option = document.createElement('option');
                     option.value = client.id;
                     option.textContent = client.name;
                     clientSelect.appendChild(option);
                 });
-                
-                console.log('✅ Clientes cargados en el selector:', Object.keys(clientsData).length);
+
+                console.log('Clientes en el selector:', Object.keys(clientsData).length);
             } else {
-                clientSelect.innerHTML = '<option value="">Error al cargar clientes</option>';
+                clientSelect.innerHTML = '<option value="">No hay clientes - Agrega en Admin</option>';
             }
 
             // Add Enter key support for admin password
@@ -3867,9 +4067,787 @@
 
         // Make functions available globally
         window.loadPendingReports = loadPendingReports;
-        
+
         // Confirm script loaded
         console.log('✅ SCRIPT COMPLETAMENTE CARGADO');
+
+        // ==========================================
+        // SISTEMA FIREBASE - CLIENTES, PRODUCTOS Y PRECIOS
+        // ==========================================
+
+        // Variables globales para datos de Firebase
+        let firebaseClientsData = {};
+        let firebaseProductsData = [];
+        let firebaseClientPrices = {};
+
+        // ========== CARGAR CLIENTES DESDE FIREBASE ==========
+        async function loadClientsFromFirebase() {
+            console.log('Cargando clientes desde Firebase...');
+            try {
+                const querySnapshot = await window.db.collection('clients').get();
+
+                firebaseClientsData = {};
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (data.active !== false) {
+                        firebaseClientsData[doc.id] = {
+                            id: doc.id,
+                            name: data.name || '',
+                            razonSocial: data.razonSocial || data.name || '',
+                            documento: data.documento || '',
+                            telefono: data.telefono || '',
+                            email: data.email || '',
+                            ciudad: data.ciudad || '',
+                            direccion: data.direccion || ''
+                        };
+                    }
+                });
+
+                console.log(`${Object.keys(firebaseClientsData).length} clientes cargados desde Firebase`);
+                Object.assign(clientsData, firebaseClientsData);
+                clientsLoaded = true;
+                return true;
+            } catch (error) {
+                console.error('Error cargando clientes desde Firebase:', error);
+                return false;
+            }
+        }
+
+        // ========== CARGAR PRODUCTOS DESDE FIREBASE ==========
+        async function loadProductsFromFirebase() {
+            console.log('Cargando productos desde Firebase...');
+            try {
+                const querySnapshot = await window.db.collection('products').get();
+
+                firebaseProductsData = [];
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (data.active !== false) {
+                        firebaseProductsData.push({
+                            id: doc.id,
+                            codigo: data.codigo || '',
+                            nombre: data.nombre || '',
+                            unidad: data.unidad || 'Unidad',
+                            precioBase: data.precioBase || 0
+                        });
+                    }
+                });
+
+                console.log(`${firebaseProductsData.length} productos cargados desde Firebase`);
+                return true;
+            } catch (error) {
+                console.error('Error cargando productos:', error);
+                return false;
+            }
+        }
+
+        // ========== CARGAR PRECIOS POR CLIENTE ==========
+        async function loadClientPricesFromFirebase(clientId) {
+            console.log(`Cargando precios para cliente: ${clientId}`);
+            try {
+                const querySnapshot = await window.db.collection('clientPrices')
+                    .where('clientId', '==', clientId)
+                    .get();
+
+                firebaseClientPrices = {};
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    firebaseClientPrices[data.productCodigo] = {
+                        id: doc.id,
+                        precio: data.precio,
+                        productId: data.productId
+                    };
+                });
+
+                console.log(`${Object.keys(firebaseClientPrices).length} precios cargados`);
+                return firebaseClientPrices;
+            } catch (error) {
+                console.error('Error cargando precios:', error);
+                return {};
+            }
+        }
+
+        // ========== CRUD CLIENTES ==========
+        async function saveClient(clientData) {
+            try {
+                const docRef = await window.db.collection('clients').add({
+                    ...clientData,
+                    active: true,
+                    createdAt: firebase.firestore.Timestamp.now(),
+                    updatedAt: firebase.firestore.Timestamp.now()
+                });
+                console.log('Cliente guardado:', docRef.id);
+                return docRef.id;
+            } catch (error) {
+                console.error('Error guardando cliente:', error);
+                throw error;
+            }
+        }
+
+        async function updateClient(clientId, clientData) {
+            try {
+                await window.db.collection('clients').doc(clientId).update({
+                    ...clientData,
+                    updatedAt: firebase.firestore.Timestamp.now()
+                });
+                console.log('Cliente actualizado:', clientId);
+            } catch (error) {
+                console.error('Error actualizando cliente:', error);
+                throw error;
+            }
+        }
+
+        async function deleteClient(clientId) {
+            try {
+                await window.db.collection('clients').doc(clientId).update({
+                    active: false,
+                    updatedAt: firebase.firestore.Timestamp.now()
+                });
+                console.log('Cliente desactivado:', clientId);
+            } catch (error) {
+                console.error('Error eliminando cliente:', error);
+                throw error;
+            }
+        }
+
+        // ========== CRUD PRODUCTOS ==========
+        async function saveProduct(productData) {
+            try {
+                const docRef = await window.db.collection('products').add({
+                    ...productData,
+                    active: true,
+                    createdAt: firebase.firestore.Timestamp.now(),
+                    updatedAt: firebase.firestore.Timestamp.now()
+                });
+                console.log('Producto guardado:', docRef.id);
+                return docRef.id;
+            } catch (error) {
+                console.error('Error guardando producto:', error);
+                throw error;
+            }
+        }
+
+        async function updateProduct(productId, productData) {
+            try {
+                await window.db.collection('products').doc(productId).update({
+                    ...productData,
+                    updatedAt: firebase.firestore.Timestamp.now()
+                });
+                console.log('Producto actualizado:', productId);
+            } catch (error) {
+                console.error('Error actualizando producto:', error);
+                throw error;
+            }
+        }
+
+        async function deleteProduct(productId) {
+            try {
+                await window.db.collection('products').doc(productId).update({
+                    active: false,
+                    updatedAt: firebase.firestore.Timestamp.now()
+                });
+                console.log('Producto desactivado:', productId);
+            } catch (error) {
+                console.error('Error eliminando producto:', error);
+                throw error;
+            }
+        }
+
+        // ========== CRUD PRECIOS POR CLIENTE ==========
+        async function saveClientPrice(clientId, productId, productCodigo, precio) {
+            try {
+                const existing = await window.db.collection('clientPrices')
+                    .where('clientId', '==', clientId)
+                    .where('productCodigo', '==', productCodigo)
+                    .get();
+
+                if (!existing.empty) {
+                    await existing.docs[0].ref.update({
+                        precio: precio,
+                        updatedAt: firebase.firestore.Timestamp.now()
+                    });
+                    console.log('Precio actualizado');
+                } else {
+                    await window.db.collection('clientPrices').add({
+                        clientId: clientId,
+                        productId: productId,
+                        productCodigo: productCodigo,
+                        precio: precio,
+                        createdAt: firebase.firestore.Timestamp.now(),
+                        updatedAt: firebase.firestore.Timestamp.now()
+                    });
+                    console.log('Precio creado');
+                }
+            } catch (error) {
+                console.error('Error guardando precio:', error);
+                throw error;
+            }
+        }
+
+        async function deleteClientPrice(priceId) {
+            try {
+                await window.db.collection('clientPrices').doc(priceId).delete();
+                console.log('Precio eliminado');
+            } catch (error) {
+                console.error('Error eliminando precio:', error);
+                throw error;
+            }
+        }
+
+        // ========== UI ADMIN - LISTA DE CLIENTES ==========
+        async function loadClientsListAdmin() {
+            const container = document.getElementById('adminClientsList');
+            container.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">Cargando clientes...</div>';
+
+            await loadClientsFromFirebase();
+
+            const clients = Object.values(firebaseClientsData);
+            if (clients.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #999;">
+                        <p style="font-size: 48px;">👥</p>
+                        <p>No hay clientes registrados</p>
+                        <p style="font-size: 14px; margin-top: 10px;">Usa "Importar de Airtable" o "Nuevo Cliente" para agregar</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = clients.map(client => `
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <div style="font-weight: 600; font-size: 16px; color: #333;">${client.name}</div>
+                        <div style="color: #666; font-size: 14px; margin-top: 5px;">
+                            📄 NIT: ${client.documento || 'N/A'} | 📍 ${client.ciudad || 'Sin ciudad'} | 📞 ${client.telefono || 'Sin tel'}
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="editClient('${client.id}')" style="padding: 10px 20px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">✏️ Editar</button>
+                        <button onclick="confirmDeleteClient('${client.id}', '${client.name.replace(/'/g, "\\'")}')" style="padding: 10px 20px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🗑️ Eliminar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterAdminClientsList(query) {
+            const clients = Object.values(firebaseClientsData);
+            const filtered = clients.filter(c =>
+                c.name.toLowerCase().includes(query.toLowerCase()) ||
+                (c.documento && c.documento.toLowerCase().includes(query.toLowerCase()))
+            );
+
+            const container = document.getElementById('adminClientsList');
+            if (filtered.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">No se encontraron clientes</div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(client => `
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <div style="font-weight: 600; font-size: 16px; color: #333;">${client.name}</div>
+                        <div style="color: #666; font-size: 14px; margin-top: 5px;">
+                            📄 NIT: ${client.documento || 'N/A'} | 📍 ${client.ciudad || 'Sin ciudad'} | 📞 ${client.telefono || 'Sin tel'}
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="editClient('${client.id}')" style="padding: 10px 20px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">✏️ Editar</button>
+                        <button onclick="confirmDeleteClient('${client.id}', '${client.name.replace(/'/g, "\\'")}')" style="padding: 10px 20px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🗑️ Eliminar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ========== UI ADMIN - LISTA DE PRODUCTOS ==========
+        async function loadProductsListAdmin() {
+            const container = document.getElementById('adminProductsList');
+            container.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">Cargando productos...</div>';
+
+            await loadProductsFromFirebase();
+
+            if (firebaseProductsData.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #999;">
+                        <p style="font-size: 48px;">📦</p>
+                        <p>No hay productos registrados</p>
+                        <p style="font-size: 14px; margin-top: 10px;">Usa "Importar de Airtable" o "Nuevo Producto" para agregar</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = firebaseProductsData.map(product => `
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <div style="font-weight: 600; font-size: 16px; color: #333;">🏷️ ${product.codigo} - ${product.nombre}</div>
+                        <div style="color: #666; font-size: 14px; margin-top: 5px;">
+                            📏 Unidad: ${product.unidad} | 💰 Precio base: $${(product.precioBase || 0).toLocaleString('es-CO')}
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="editProduct('${product.id}')" style="padding: 10px 20px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">✏️ Editar</button>
+                        <button onclick="confirmDeleteProduct('${product.id}', '${product.nombre.replace(/'/g, "\\'")}')" style="padding: 10px 20px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🗑️ Eliminar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterAdminProductsList(query) {
+            const filtered = firebaseProductsData.filter(p =>
+                p.codigo.toLowerCase().includes(query.toLowerCase()) ||
+                p.nombre.toLowerCase().includes(query.toLowerCase())
+            );
+
+            const container = document.getElementById('adminProductsList');
+            if (filtered.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">No se encontraron productos</div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(product => `
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <div style="font-weight: 600; font-size: 16px; color: #333;">🏷️ ${product.codigo} - ${product.nombre}</div>
+                        <div style="color: #666; font-size: 14px; margin-top: 5px;">
+                            📏 Unidad: ${product.unidad} | 💰 Precio base: $${(product.precioBase || 0).toLocaleString('es-CO')}
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="editProduct('${product.id}')" style="padding: 10px 20px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">✏️ Editar</button>
+                        <button onclick="confirmDeleteProduct('${product.id}', '${product.nombre.replace(/'/g, "\\'")}')" style="padding: 10px 20px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🗑️ Eliminar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ========== MODALES CLIENTES ==========
+        function openNewClientModal() {
+            document.getElementById('clientModalTitle').textContent = '+ Nuevo Cliente';
+            document.getElementById('editClientId').value = '';
+            document.getElementById('clientForm').reset();
+            document.getElementById('clientModal').style.display = 'flex';
+        }
+
+        function closeClientModal() {
+            document.getElementById('clientModal').style.display = 'none';
+        }
+
+        function editClient(clientId) {
+            const client = firebaseClientsData[clientId];
+            if (!client) return;
+
+            document.getElementById('clientModalTitle').textContent = 'Editar Cliente';
+            document.getElementById('editClientId').value = clientId;
+            document.getElementById('clientName').value = client.name || '';
+            document.getElementById('clientDocumento').value = client.documento || '';
+            document.getElementById('clientTelefono').value = client.telefono || '';
+            document.getElementById('clientEmail').value = client.email || '';
+            document.getElementById('clientCiudad').value = client.ciudad || '';
+            document.getElementById('clientDireccion').value = client.direccion || '';
+            document.getElementById('clientModal').style.display = 'flex';
+        }
+
+        async function saveClientForm() {
+            const clientId = document.getElementById('editClientId').value;
+            const clientData = {
+                name: document.getElementById('clientName').value.trim(),
+                razonSocial: document.getElementById('clientName').value.trim(),
+                documento: document.getElementById('clientDocumento').value.trim(),
+                telefono: document.getElementById('clientTelefono').value.trim(),
+                email: document.getElementById('clientEmail').value.trim(),
+                ciudad: document.getElementById('clientCiudad').value.trim(),
+                direccion: document.getElementById('clientDireccion').value.trim()
+            };
+
+            if (!clientData.name || !clientData.documento) {
+                alert('Por favor completa los campos obligatorios');
+                return;
+            }
+
+            try {
+                if (clientId) {
+                    await updateClient(clientId, clientData);
+                } else {
+                    await saveClient(clientData);
+                }
+                closeClientModal();
+                await loadClientsListAdmin();
+                alert('Cliente guardado correctamente');
+            } catch (error) {
+                alert('Error al guardar: ' + error.message);
+            }
+        }
+
+        async function confirmDeleteClient(clientId, clientName) {
+            if (!confirm(`¿Eliminar el cliente "${clientName}"?`)) return;
+            try {
+                await deleteClient(clientId);
+                await loadClientsListAdmin();
+            } catch (error) {
+                alert('Error al eliminar: ' + error.message);
+            }
+        }
+
+        // ========== MODALES PRODUCTOS ==========
+        function openNewProductModal() {
+            document.getElementById('productModalTitle').textContent = '+ Nuevo Producto';
+            document.getElementById('editProductId').value = '';
+            document.getElementById('productForm').reset();
+            document.getElementById('productModal').style.display = 'flex';
+        }
+
+        function closeProductModal() {
+            document.getElementById('productModal').style.display = 'none';
+        }
+
+        function editProduct(productId) {
+            const product = firebaseProductsData.find(p => p.id === productId);
+            if (!product) return;
+
+            document.getElementById('productModalTitle').textContent = 'Editar Producto';
+            document.getElementById('editProductId').value = productId;
+            document.getElementById('productCodigo').value = product.codigo || '';
+            document.getElementById('productNombre').value = product.nombre || '';
+            document.getElementById('productUnidad').value = product.unidad || 'Unidad';
+            document.getElementById('productPrecioBase').value = product.precioBase || 0;
+            document.getElementById('productModal').style.display = 'flex';
+        }
+
+        async function saveProductForm() {
+            const productId = document.getElementById('editProductId').value;
+            const productData = {
+                codigo: document.getElementById('productCodigo').value.trim(),
+                nombre: document.getElementById('productNombre').value.trim(),
+                unidad: document.getElementById('productUnidad').value,
+                precioBase: parseFloat(document.getElementById('productPrecioBase').value) || 0
+            };
+
+            if (!productData.codigo || !productData.nombre) {
+                alert('Por favor completa los campos obligatorios');
+                return;
+            }
+
+            try {
+                if (productId) {
+                    await updateProduct(productId, productData);
+                } else {
+                    await saveProduct(productData);
+                }
+                closeProductModal();
+                await loadProductsListAdmin();
+                alert('Producto guardado correctamente');
+            } catch (error) {
+                alert('Error al guardar: ' + error.message);
+            }
+        }
+
+        async function confirmDeleteProduct(productId, productName) {
+            if (!confirm(`¿Eliminar el producto "${productName}"?`)) return;
+            try {
+                await deleteProduct(productId);
+                await loadProductsListAdmin();
+            } catch (error) {
+                alert('Error al eliminar: ' + error.message);
+            }
+        }
+
+        // ========== MODAL PRECIOS POR CLIENTE ==========
+        async function openClientPricesModal() {
+            await loadClientsFromFirebase();
+            await loadProductsFromFirebase();
+
+            const select = document.getElementById('priceClientSelect');
+            select.innerHTML = '<option value="">-- Selecciona un cliente --</option>';
+            Object.values(firebaseClientsData).forEach(client => {
+                select.innerHTML += `<option value="${client.id}">${client.name} (${client.documento || 'Sin NIT'})</option>`;
+            });
+
+            const productSelect = document.getElementById('newPriceProduct');
+            productSelect.innerHTML = '<option value="">-- Selecciona producto --</option>';
+            firebaseProductsData.forEach(product => {
+                productSelect.innerHTML += `<option value="${product.id}" data-codigo="${product.codigo}">${product.codigo} - ${product.nombre} ($${(product.precioBase || 0).toLocaleString('es-CO')})</option>`;
+            });
+
+            document.getElementById('priceClientInfo').style.display = 'none';
+            document.getElementById('addPriceSection').style.display = 'none';
+            document.getElementById('clientPricesTable').innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Selecciona un cliente para ver sus precios</p>';
+            document.getElementById('clientPricesModal').style.display = 'flex';
+        }
+
+        function closeClientPricesModal() {
+            document.getElementById('clientPricesModal').style.display = 'none';
+        }
+
+        async function loadPricesForSelectedClient() {
+            const clientId = document.getElementById('priceClientSelect').value;
+            if (!clientId) {
+                document.getElementById('priceClientInfo').style.display = 'none';
+                document.getElementById('addPriceSection').style.display = 'none';
+                document.getElementById('clientPricesTable').innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Selecciona un cliente para ver sus precios</p>';
+                return;
+            }
+
+            const client = firebaseClientsData[clientId];
+            document.getElementById('priceClientInfo').innerHTML = `<strong>${client.name}</strong> - NIT: ${client.documento || 'N/A'}`;
+            document.getElementById('priceClientInfo').style.display = 'block';
+            document.getElementById('addPriceSection').style.display = 'block';
+
+            const prices = await loadClientPricesFromFirebase(clientId);
+            const pricesArray = Object.entries(prices);
+
+            if (pricesArray.length === 0) {
+                document.getElementById('clientPricesTable').innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">Este cliente no tiene precios personalizados</p>';
+                return;
+            }
+
+            let html = '<table style="width: 100%; border-collapse: collapse;">';
+            html += '<tr style="background: #f3f4f6;"><th style="padding: 12px; text-align: left;">Código</th><th style="padding: 12px; text-align: left;">Producto</th><th style="padding: 12px; text-align: right;">Precio</th><th style="padding: 12px; text-align: center;">Acciones</th></tr>';
+
+            pricesArray.forEach(([codigo, data]) => {
+                const product = firebaseProductsData.find(p => p.codigo === codigo);
+                html += `
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 12px;">${codigo}</td>
+                        <td style="padding: 12px;">${product ? product.nombre : 'Producto no encontrado'}</td>
+                        <td style="padding: 12px; text-align: right;">$${data.precio.toLocaleString('es-CO')}</td>
+                        <td style="padding: 12px; text-align: center;">
+                            <button onclick="deleteClientPriceAndReload('${data.id}')" style="padding: 5px 10px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer;">Eliminar</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</table>';
+            document.getElementById('clientPricesTable').innerHTML = html;
+        }
+
+        async function addClientPrice() {
+            const clientId = document.getElementById('priceClientSelect').value;
+            const productSelect = document.getElementById('newPriceProduct');
+            const productId = productSelect.value;
+            const productCodigo = productSelect.options[productSelect.selectedIndex]?.dataset?.codigo;
+            const precio = parseFloat(document.getElementById('newPriceAmount').value);
+
+            if (!clientId || !productId || !productCodigo || isNaN(precio) || precio <= 0) {
+                alert('Por favor selecciona un producto y un precio válido');
+                return;
+            }
+
+            try {
+                await saveClientPrice(clientId, productId, productCodigo, precio);
+                document.getElementById('newPriceProduct').value = '';
+                document.getElementById('newPriceAmount').value = '';
+                await loadPricesForSelectedClient();
+            } catch (error) {
+                alert('Error al guardar precio: ' + error.message);
+            }
+        }
+
+        async function deleteClientPriceAndReload(priceId) {
+            if (!confirm('¿Eliminar este precio?')) return;
+            try {
+                await deleteClientPrice(priceId);
+                await loadPricesForSelectedClient();
+            } catch (error) {
+                alert('Error al eliminar: ' + error.message);
+            }
+        }
+
+        // ========== MIGRACIÓN DESDE AIRTABLE ==========
+        async function migrarClientesDeAirtable() {
+            if (!confirm('Esto importará los clientes desde Airtable a Firebase. ¿Continuar?')) return;
+
+            const container = document.getElementById('adminClientsList');
+            container.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">🔄 Conectando con Airtable...</div>';
+
+            try {
+                // Intentar cargar directamente desde Airtable
+                const tablaClientes = 'Gestión de Clientes';
+                const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tablaClientes)}`;
+
+                container.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">📡 Obteniendo clientes de Airtable...</div>';
+
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` }
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Airtable respondió con error ${response.status}: ${errorText}`);
+                }
+
+                const data = await response.json();
+                console.log('📊 Datos de Airtable:', data);
+
+                const totalEnAirtable = data.records?.length || 0;
+                container.innerHTML = `<div style="text-align: center; padding: 40px; color: #666;">📥 Encontrados ${totalEnAirtable} registros. Importando...</div>`;
+
+                if (totalEnAirtable === 0) {
+                    alert('No se encontraron clientes en Airtable. La tabla puede estar vacía.');
+                    await loadClientsListAdmin();
+                    return;
+                }
+
+                let importados = 0;
+                let yaExisten = 0;
+                let errores = 0;
+
+                for (const record of data.records) {
+                    const fields = record.fields;
+                    const cliente = {
+                        name: fields['Empresa o razón social'] || fields['Nombre de Cliente'] || fields['Nombre del cliente'] || 'Sin nombre',
+                        razonSocial: fields['Empresa o razón social'] || fields['Nombre de Cliente'] || '',
+                        documento: fields['Documento / NIT'] || fields['NIT'] || '',
+                        telefono: fields['Teléfono'] || fields['Telefono'] || '',
+                        email: fields['Correo electrónico'] || fields['Email'] || '',
+                        ciudad: fields['Ciudad'] || '',
+                        direccion: fields['Dirección'] || fields['Direccion'] || '',
+                        airtableId: record.id
+                    };
+
+                    if (!cliente.documento) {
+                        console.log('⚠️ Cliente sin documento, saltando:', cliente.name);
+                        continue;
+                    }
+
+                    try {
+                        const existing = await window.db.collection('clients')
+                            .where('documento', '==', cliente.documento)
+                            .get();
+
+                        if (existing.empty) {
+                            await saveClient(cliente);
+                            importados++;
+                            console.log('✅ Importado:', cliente.name);
+                        } else {
+                            yaExisten++;
+                            console.log('⏭️ Ya existe:', cliente.name);
+                        }
+                    } catch (err) {
+                        console.error('❌ Error migrando cliente:', err);
+                        errores++;
+                    }
+                }
+
+                alert(`Migración completada:\n• ${importados} clientes importados\n• ${yaExisten} ya existían\n• ${errores} errores`);
+                await loadClientsListAdmin();
+
+            } catch (error) {
+                console.error('Error en migración:', error);
+                alert('Error conectando con Airtable:\n' + error.message + '\n\nVerifica que el token de Airtable sea válido.');
+                await loadClientsListAdmin();
+            }
+        }
+
+        async function migrarProductosDeAirtable() {
+            if (!confirm('Esto importará los productos desde Airtable a Firebase. ¿Continuar?')) return;
+
+            const container = document.getElementById('adminProductsList');
+            container.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">🔄 Conectando con Airtable...</div>';
+
+            try {
+                const tablaCatalogo = 'Catálogo de Productos';
+                const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tablaCatalogo)}`;
+
+                container.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">📡 Obteniendo productos de Airtable...</div>';
+
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` }
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Airtable respondió con error ${response.status}: ${errorText}`);
+                }
+
+                const data = await response.json();
+                console.log('📊 Productos de Airtable:', data);
+
+                const totalEnAirtable = data.records?.length || 0;
+                container.innerHTML = `<div style="text-align: center; padding: 40px; color: #666;">📥 Encontrados ${totalEnAirtable} productos. Importando...</div>`;
+
+                if (totalEnAirtable === 0) {
+                    alert('No se encontraron productos en Airtable. La tabla puede estar vacía.');
+                    await loadProductsListAdmin();
+                    return;
+                }
+
+                let importados = 0;
+                let yaExisten = 0;
+                let errores = 0;
+
+                for (const record of data.records) {
+                    const fields = record.fields;
+                    const codigo = fields['Código del producto'] || fields['Código'] || fields['codigo'] || '';
+                    const nombre = fields['Nombre del producto'] || fields['Nombre'] || fields['nombre'] || '';
+                    const unidad = fields['Unidad de medida'] || fields['Unidad'] || 'Unidad';
+                    const precio = parseFloat(fields['Precio'] || fields['precio'] || 0);
+
+                    if (!codigo || !nombre) {
+                        console.log('⚠️ Producto sin código o nombre, saltando:', fields);
+                        continue;
+                    }
+
+                    try {
+                        const existing = await window.db.collection('products')
+                            .where('codigo', '==', codigo)
+                            .get();
+
+                        if (existing.empty) {
+                            await saveProduct({
+                                codigo: codigo,
+                                nombre: nombre,
+                                unidad: unidad,
+                                precioBase: precio,
+                                airtableId: record.id
+                            });
+                            importados++;
+                            console.log('✅ Importado:', codigo, '-', nombre);
+                        } else {
+                            yaExisten++;
+                            console.log('⏭️ Ya existe:', codigo);
+                        }
+                    } catch (err) {
+                        console.error('❌ Error migrando producto:', err);
+                        errores++;
+                    }
+                }
+
+                alert(`Migración completada:\n• ${importados} productos importados\n• ${yaExisten} ya existían\n• ${errores} errores`);
+                await loadProductsListAdmin();
+
+            } catch (error) {
+                console.error('Error en migración de productos:', error);
+                alert('Error conectando con Airtable:\n' + error.message + '\n\nVerifica que el token de Airtable sea válido.');
+                await loadProductsListAdmin();
+            }
+        }
+
+        // Exponer funciones globalmente
+        window.loadClientsFromFirebase = loadClientsFromFirebase;
+        window.loadProductsFromFirebase = loadProductsFromFirebase;
+        window.loadClientPricesFromFirebase = loadClientPricesFromFirebase;
+        window.loadClientsListAdmin = loadClientsListAdmin;
+        window.loadProductsListAdmin = loadProductsListAdmin;
+        window.filterAdminClientsList = filterAdminClientsList;
+        window.filterAdminProductsList = filterAdminProductsList;
+        window.openNewClientModal = openNewClientModal;
+        window.closeClientModal = closeClientModal;
+        window.editClient = editClient;
+        window.saveClientForm = saveClientForm;
+        window.confirmDeleteClient = confirmDeleteClient;
+        window.openNewProductModal = openNewProductModal;
+        window.closeProductModal = closeProductModal;
+        window.editProduct = editProduct;
+        window.saveProductForm = saveProductForm;
+        window.confirmDeleteProduct = confirmDeleteProduct;
+        window.openClientPricesModal = openClientPricesModal;
+        window.closeClientPricesModal = closeClientPricesModal;
+        window.loadPricesForSelectedClient = loadPricesForSelectedClient;
+        window.addClientPrice = addClientPrice;
+        window.deleteClientPriceAndReload = deleteClientPriceAndReload;
+        window.migrarClientesDeAirtable = migrarClientesDeAirtable;
+        window.migrarProductosDeAirtable = migrarProductosDeAirtable;
 
         // ==========================================
         // SISTEMA FINAL - PRODUCTOS + PRECIOS POR CLIENTE
